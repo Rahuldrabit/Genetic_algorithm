@@ -395,10 +395,58 @@ public:
                     }
                 }
             } else {
-                // For other representations, use the standard crossover
-                auto result = crossoverOp->crossover(parent1.chromosome, parent2.chromosome);
-                child1.chromosome = result.first;
-                child2.chromosome = result.second;
+                // For other representations, use the specific crossover method
+                if (config.crossoverType == "one_point") {
+                    auto* onePointCrossover = dynamic_cast<OnePointCrossover*>(crossoverOp.get());
+                    if (onePointCrossover) {
+                        auto result = onePointCrossover->crossover(parent1.chromosome, parent2.chromosome);
+                        child1.chromosome = result.first;
+                        child2.chromosome = result.second;
+                    }
+                } else if (config.crossoverType == "two_point") {
+                    auto* twoPointCrossover = dynamic_cast<TwoPointCrossover*>(crossoverOp.get());
+                    if (twoPointCrossover) {
+                        auto result = twoPointCrossover->crossover(parent1.chromosome, parent2.chromosome);
+                        child1.chromosome = result.first;
+                        child2.chromosome = result.second;
+                    }
+                } else if (config.crossoverType == "uniform") {
+                    auto* uniformCrossover = dynamic_cast<UniformCrossover*>(crossoverOp.get());
+                    if (uniformCrossover) {
+                        auto result = uniformCrossover->crossover(parent1.chromosome, parent2.chromosome);
+                        child1.chromosome = result.first;
+                        child2.chromosome = result.second;
+                    }
+                } else if (config.crossoverType == "arithmetic") {
+                    auto* arithmeticCrossover = dynamic_cast<IntermediateRecombination*>(crossoverOp.get());
+                    if (arithmeticCrossover) {
+                        auto result = arithmeticCrossover->crossover(parent1.chromosome, parent2.chromosome);
+                        child1.chromosome = result.first;
+                        child2.chromosome = result.second;
+                    }
+                } else if (config.crossoverType == "blend") {
+                    auto* blendCrossover = dynamic_cast<BlendCrossover*>(crossoverOp.get());
+                    if (blendCrossover) {
+                        auto result = blendCrossover->crossover(parent1.chromosome, parent2.chromosome);
+                        child1.chromosome = result.first;
+                        child2.chromosome = result.second;
+                    }
+                } else if (config.crossoverType == "sbx") {
+                    auto* sbxCrossover = dynamic_cast<SimulatedBinaryCrossover*>(crossoverOp.get());
+                    if (sbxCrossover) {
+                        auto result = sbxCrossover->crossover(parent1.chromosome, parent2.chromosome);
+                        child1.chromosome = result.first;
+                        child2.chromosome = result.second;
+                    }
+                } else {
+                    // Default fallback to one point
+                    auto* onePointCrossover = dynamic_cast<OnePointCrossover*>(crossoverOp.get());
+                    if (onePointCrossover) {
+                        auto result = onePointCrossover->crossover(parent1.chromosome, parent2.chromosome);
+                        child1.chromosome = result.first;
+                        child2.chromosome = result.second;
+                    }
+                }
             }
             
             // Use the new clampToBounds method

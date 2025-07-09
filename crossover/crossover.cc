@@ -1351,6 +1351,32 @@ Permutation DistancePreservingCrossover::crossover(const Permutation& parent1, c
     return child;
 }
 
+int DistancePreservingCrossover::findNearestUnvisited(int current, const std::set<int>& unvisited) {
+    if (unvisited.empty()) {
+        return -1;
+    }
+    
+    double min_distance = std::numeric_limits<double>::max();
+    int nearest = -1;
+    
+    for (int city : unvisited) {
+        if (current < distance_matrix.size() && city < distance_matrix[current].size()) {
+            double distance = distance_matrix[current][city];
+            if (distance < min_distance) {
+                min_distance = distance;
+                nearest = city;
+            }
+        }
+    }
+    
+    // If no valid nearest found, return the first available city
+    if (nearest == -1 && !unvisited.empty()) {
+        nearest = *unvisited.begin();
+    }
+    
+    return nearest;
+}
+
 // ============================================================================
 // EVOLUTION STRATEGIES RECOMBINATION
 // ============================================================================
