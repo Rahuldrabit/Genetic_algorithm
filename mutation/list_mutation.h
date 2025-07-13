@@ -11,7 +11,7 @@
  * variable-length list chromosomes. It's useful for problems where
  * the solution length is not fixed.
  */
-class ListMutation : public BaseMutation {
+class ListMutation : public MutationOperator {
 public:
     /**
      * @brief Constructor
@@ -42,13 +42,13 @@ public:
      * @brief Get the name of this mutation operator
      * @return String name of the operator
      */
-    std::string getName() const override { return "List Mutation"; }
+    std::string getName() const { return "List Mutation"; }
 
     /**
      * @brief Get description of this mutation operator
      * @return String description
      */
-    std::string getDescription() const override {
+    std::string getDescription() const {
         return "Mutates both content and size of variable-length lists";
     }
 

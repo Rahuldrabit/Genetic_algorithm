@@ -3,15 +3,7 @@
 
 #include "base_crossover.h"
 
-// Tree node structure for GP
-struct TreeNode {
-    std::string value;
-    std::vector<TreeNode*> children;
-    
-    TreeNode(const std::string& val) : value(val) {}
-    ~TreeNode();
-    TreeNode* clone() const;
-};
+// Tree node structure for GP - using the one from base_crossover.h
 
 class SubtreeCrossover : public CrossoverOperator {
 public:

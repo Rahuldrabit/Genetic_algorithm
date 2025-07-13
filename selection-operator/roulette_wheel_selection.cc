@@ -1,6 +1,7 @@
 #include "roulette_wheel_selection.h"
 #include <random>
 #include <algorithm>
+#include <iostream>
 
 std::vector<Individual> RouletteWheelSelection::select(const std::vector<Individual>& population, size_t count) {
     std::vector<Individual> selected;
@@ -44,6 +45,50 @@ std::vector<Individual> RouletteWheelSelection::select(const std::vector<Individ
     }
     
     return selected;
+}
+
+std::vector<unsigned int> RouletteWheelSelection::selectIndices(std::vector<Individual>& population, unsigned int count) {
+    std::vector<unsigned int> selectedIndices;
+    selectedIndices.reserve(count);
+    
+    if (population.empty()) {
+        return selectedIndices;
+    }
+    
+    double total_fitness = 0.0;
+    for (const auto& individual : population) {
+        total_fitness += individual.fitness;
+    }
+    
+    if (total_fitness <= 0.0) {
+        std::random_device rd;
+        std::mt19937 gen(rd());
+        std::uniform_int_distribution<> dis(0, population.size() - 1);
+        
+        for (unsigned int i = 0; i < count; ++i) {
+            selectedIndices.push_back(dis(gen));
+        }
+        return selectedIndices;
+    }
+    
+    std::random_device rd;
+    std::mt19937 gen(rd());
+    std::uniform_real_distribution<> dis(0.0, total_fitness);
+    
+    for (unsigned int i = 0; i < count; ++i) {
+        double random_value = dis(gen);
+        double cumulative_fitness = 0.0;
+        
+        for (unsigned int j = 0; j < population.size(); ++j) {
+            cumulative_fitness += population[j].fitness;
+            if (cumulative_fitness >= random_value) {
+                selectedIndices.push_back(j);
+                break;
+            }
+        }
+    }
+    
+    return selectedIndices;
 }
 
 // Legacy function for backward compatibility

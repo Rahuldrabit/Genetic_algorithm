@@ -1,32 +1,43 @@
 #include "blend_crossover.h"
+#include <stdexcept>
 #include <algorithm>
+#include <cmath>
+
+// ============================================================================
+// BLEND CROSSOVER (BLX-α) IMPLEMENTATION
+// ============================================================================
 
 std::pair<RealVector, RealVector> BlendCrossover::crossover(const RealVector& parent1, const RealVector& parent2) {
     if (parent1.size() != parent2.size()) {
-        logError("Parent chromosomes have different sizes");
-        return {parent1, parent2};
+        throw std::invalid_argument("Parents must have the same length");
     }
     
-    RealVector child1, child2;
-    child1.reserve(parent1.size());
-    child2.reserve(parent1.size());
+    operation_count++;
+    
+    size_t length = parent1.size();
+    RealVector child1(length), child2(length);
     
     std::uniform_real_distribution<double> dist(0.0, 1.0);
     
-    for (size_t i = 0; i < parent1.size(); ++i) {
-        double min_val = std::min(parent1[i], parent2[i]);
-        double max_val = std::max(parent1[i], parent2[i]);
-        double range = max_val - min_val;
+    // For each gene position, perform blend crossover
+    for (size_t i = 0; i < length; ++i) {
+        double p1_val = parent1[i];
+        double p2_val = parent2[i];
         
-        double lower_bound = min_val - alpha * range;
-        double upper_bound = max_val + alpha * range;
+        // Determine the interval bounds
+        double lower = std::min(p1_val, p2_val);
+        double upper = std::max(p1_val, p2_val);
+        double interval = upper - lower;
         
-        std::uniform_real_distribution<double> blend_dist(lower_bound, upper_bound);
+        // Extend the interval by alpha on both sides
+        double extended_lower = lower - alpha * interval;
+        double extended_upper = upper + alpha * interval;
         
-        child1.push_back(blend_dist(rng));
-        child2.push_back(blend_dist(rng));
+        // Generate random values within the extended interval
+        std::uniform_real_distribution<double> gene_dist(extended_lower, extended_upper);
+        child1[i] = gene_dist(rng);
+        child2[i] = gene_dist(rng);
     }
     
-    logOperation("Blend crossover (BLX-α) with alpha " + std::to_string(alpha), true);
     return {child1, child2};
 }

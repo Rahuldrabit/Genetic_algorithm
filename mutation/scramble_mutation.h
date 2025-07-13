@@ -11,7 +11,7 @@
  * randomly reorders the elements within that subset. This is useful
  * for permutation-based problems like TSP.
  */
-class ScrambleMutation : public BaseMutation {
+class ScrambleMutation : public MutationOperator {
 public:
     /**
      * @brief Constructor
@@ -31,15 +31,13 @@ public:
      * @brief Get the name of this mutation operator
      * @return String name of the operator
      */
-    std::string getName() const override { return "Scramble Mutation"; }
+    std::string getName() const { return "Scramble Mutation"; }
 
     /**
      * @brief Get description of this mutation operator
      * @return String description
      */
-    std::string getDescription() const override {
-        return "Selects a random subset and randomly reorders elements within it";
-    }
+    std::string getDescription() const { return "Selects a random subset and randomly reorders elements within it"; }
 
 private:
     /**

@@ -3,7 +3,7 @@
 #include <random>
 #include <sstream>
 
-ListMutation::ListMutation(unsigned int seed) : BaseMutation(seed) {
+ListMutation::ListMutation(unsigned int seed) : MutationOperator("ListMutation", seed) {
 }
 
 void ListMutation::mutate(std::vector<int>& list, 

@@ -1,70 +1,76 @@
 #include "order_crossover.h"
+#include <stdexcept>
 #include <algorithm>
 #include <unordered_set>
 
+// ============================================================================
+// ORDER CROSSOVER (OX) IMPLEMENTATION
+// ============================================================================
+
 std::pair<Permutation, Permutation> OrderCrossover::crossover(const Permutation& parent1, const Permutation& parent2) {
     if (parent1.size() != parent2.size()) {
-        logError("Parent chromosomes have different sizes");
+        throw std::invalid_argument("Parents must have the same length");
+    }
+    
+    if (parent1.empty()) {
         return {parent1, parent2};
     }
     
-    size_t length = parent1.size();
-    if (length <= 2) {
-        logOperation("Crossover with length <= 2, returning parents", true);
-        return {parent1, parent2};
-    }
+    operation_count++;
     
-    // Select two random crossover points
-    std::uniform_int_distribution<size_t> dist(0, length - 1);
-    size_t point1 = dist(rng);
-    size_t point2 = dist(rng);
+    // Create both offspring
+    Permutation child1 = createOffspring(parent1, parent2);
+    Permutation child2 = createOffspring(parent2, parent1);
     
-    if (point1 > point2) std::swap(point1, point2);
-    
-    Permutation child1(length, -1);
-    Permutation child2(length, -1);
-    
-    // Copy the segment between crossover points
-    std::unordered_set<int> used_in_child1, used_in_child2;
-    
-    for (size_t i = point1; i <= point2; ++i) {
-        child1[i] = parent1[i];
-        child2[i] = parent2[i];
-        used_in_child1.insert(parent1[i]);
-        used_in_child2.insert(parent2[i]);
-    }
-    
-    // Fill remaining positions for child1
-    size_t child1_pos = (point2 + 1) % length;
-    for (size_t i = 0; i < length; ++i) {
-        size_t parent2_pos = (point2 + 1 + i) % length;
-        int value = parent2[parent2_pos];
-        
-        if (used_in_child1.find(value) == used_in_child1.end()) {
-            while (child1[child1_pos] != -1) {
-                child1_pos = (child1_pos + 1) % length;
-            }
-            child1[child1_pos] = value;
-            used_in_child1.insert(value);
-        }
-    }
-    
-    // Fill remaining positions for child2
-    size_t child2_pos = (point2 + 1) % length;
-    for (size_t i = 0; i < length; ++i) {
-        size_t parent1_pos = (point2 + 1 + i) % length;
-        int value = parent1[parent1_pos];
-        
-        if (used_in_child2.find(value) == used_in_child2.end()) {
-            while (child2[child2_pos] != -1) {
-                child2_pos = (child2_pos + 1) % length;
-            }
-            child2[child2_pos] = value;
-            used_in_child2.insert(value);
-        }
-    }
-    
-    logOperation("Order crossover (OX) between positions " + 
-                std::to_string(point1) + " and " + std::to_string(point2), true);
     return {child1, child2};
+}
+
+Permutation OrderCrossover::createOffspring(const Permutation& p1, const Permutation& p2) {
+    size_t length = p1.size();
+    
+    if (length <= 2) {
+        return p1; // No meaningful crossover for very short permutations
+    }
+    
+    // Select two random cut points
+    std::uniform_int_distribution<size_t> dist(0, length - 1);
+    size_t cut1 = dist(rng);
+    size_t cut2 = dist(rng);
+    
+    // Ensure cut1 <= cut2
+    if (cut1 > cut2) {
+        std::swap(cut1, cut2);
+    }
+    
+    // Initialize offspring with -1 (indicating empty positions)
+    Permutation offspring(length, -1);
+    
+    // Copy the segment between cut points from parent1
+    std::unordered_set<int> copied_elements;
+    for (size_t i = cut1; i <= cut2; ++i) {
+        offspring[i] = p1[i];
+        copied_elements.insert(p1[i]);
+    }
+    
+    // Fill remaining positions with elements from parent2 in order
+    size_t offspring_pos = 0;
+    for (size_t i = 0; i < length; ++i) {
+        // Skip the copied segment
+        if (offspring_pos >= cut1 && offspring_pos <= cut2) {
+            offspring_pos = cut2 + 1;
+        }
+        
+        // If we've filled all positions, break
+        if (offspring_pos >= length) {
+            break;
+        }
+        
+        // If element from p2 is not already copied, add it
+        if (copied_elements.find(p2[i]) == copied_elements.end()) {
+            offspring[offspring_pos] = p2[i];
+            offspring_pos++;
+        }
+    }
+    
+    return offspring;
 }

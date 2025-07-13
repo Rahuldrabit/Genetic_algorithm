@@ -2,23 +2,7 @@
 #include <stdexcept>
 #include <memory>
 
-// ============================================================================
-// TREE NODE IMPLEMENTATION
-// ============================================================================
-
-TreeNode::~TreeNode() {
-    for (auto* child : children) {
-        delete child;
-    }
-}
-
-TreeNode* TreeNode::clone() const {
-    TreeNode* copy = new TreeNode(value);
-    for (const auto* child : children) {
-        copy->children.push_back(child->clone());
-    }
-    return copy;
-}
+// TreeNode implementation is in base_crossover.cc
 
 // ============================================================================
 // SUBTREE CROSSOVER IMPLEMENTATION

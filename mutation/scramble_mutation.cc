@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <random>
 
-ScrambleMutation::ScrambleMutation(unsigned int seed) : BaseMutation(seed) {
+ScrambleMutation::ScrambleMutation(unsigned int seed) : MutationOperator("ScrambleMutation", seed) {
 }
 
 void ScrambleMutation::mutate(std::vector<int>& permutation, double pm) const {

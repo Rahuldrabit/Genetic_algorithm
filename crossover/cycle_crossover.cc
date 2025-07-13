@@ -1,30 +1,36 @@
 #include "cycle_crossover.h"
-#include <algorithm>
 #include <unordered_set>
+#include <stdexcept>
+
+// ============================================================================
+// CYCLE CROSSOVER IMPLEMENTATION
+// ============================================================================
 
 std::vector<std::vector<int>> CycleCrossover::findCycles(const Permutation& parent1, const Permutation& parent2) {
     std::vector<std::vector<int>> cycles;
-    std::unordered_set<int> visited;
+    std::unordered_set<int> processed;
     
     for (size_t i = 0; i < parent1.size(); ++i) {
-        if (visited.find(i) != visited.end()) continue;
+        if (processed.find(i) != processed.end()) continue;
         
         std::vector<int> cycle;
-        size_t current = i;
+        int current = i;
         
         do {
             cycle.push_back(current);
-            visited.insert(current);
+            processed.insert(current);
             
             // Find where parent1[current] appears in parent2
-            auto it = std::find(parent2.begin(), parent2.end(), parent1[current]);
-            current = std::distance(parent2.begin(), it);
-            
-        } while (visited.find(current) == visited.end());
+            int target_value = parent1[current];
+            for (size_t j = 0; j < parent2.size(); ++j) {
+                if (parent2[j] == target_value) {
+                    current = j;
+                    break;
+                }
+            }
+        } while (current != static_cast<int>(i));
         
-        if (!cycle.empty()) {
-            cycles.push_back(cycle);
-        }
+        cycles.push_back(cycle);
     }
     
     return cycles;
@@ -32,25 +38,23 @@ std::vector<std::vector<int>> CycleCrossover::findCycles(const Permutation& pare
 
 std::pair<Permutation, Permutation> CycleCrossover::crossover(const Permutation& parent1, const Permutation& parent2) {
     if (parent1.size() != parent2.size()) {
-        logError("Parent chromosomes have different sizes");
-        return {parent1, parent2};
+        throw std::invalid_argument("Parents must have the same length");
     }
     
-    Permutation child1 = parent1;
-    Permutation child2 = parent2;
+    operation_count++;
     
-    std::vector<std::vector<int>> cycles = findCycles(parent1, parent2);
+    auto cycles = findCycles(parent1, parent2);
+    
+    Permutation child1 = parent2;
+    Permutation child2 = parent1;
     
     // Alternate cycles between parents
-    for (size_t cycle_idx = 0; cycle_idx < cycles.size(); ++cycle_idx) {
-        if (cycle_idx % 2 == 1) { // Odd cycles: swap values
-            for (int pos : cycles[cycle_idx]) {
-                std::swap(child1[pos], child2[pos]);
-            }
+    for (size_t i = 0; i < cycles.size(); i += 2) {
+        for (int pos : cycles[i]) {
+            child1[pos] = parent1[pos];
+            child2[pos] = parent2[pos];
         }
-        // Even cycles: keep as is
     }
     
-    logOperation("Cycle crossover (CX) with " + std::to_string(cycles.size()) + " cycles found", true);
     return {child1, child2};
 }

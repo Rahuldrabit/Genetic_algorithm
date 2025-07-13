@@ -31,13 +31,13 @@ public:
      * @brief Get the name of this mutation operator
      * @return String name of the operator
      */
-    std::string getName() const override { return "Insert Mutation"; }
+    std::string getName() const { return "Insert Mutation"; }
 
     /**
      * @brief Get description of this mutation operator
      * @return String description
      */
-    std::string getDescription() const override {
+    std::string getDescription() const {
         return "Selects a random element and inserts it at a random position";
     }
 

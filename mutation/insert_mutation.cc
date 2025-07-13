@@ -2,7 +2,7 @@
 #include <algorithm>
 #include <random>
 
-InsertMutation::InsertMutation(unsigned int seed) : BaseMutation(seed) {
+InsertMutation::InsertMutation(unsigned int seed) : MutationOperator("InsertMutation", seed) {
 }
 
 void InsertMutation::mutate(std::vector<int>& permutation, double pm) const {

@@ -34,7 +34,9 @@ std::pair<BitString, BitString> MultiPointCrossover::crossover(const BitString& 
         
         if (exchange) {
             for (size_t j = start; j < end; ++j) {
-                std::swap(child1[j], child2[j]);
+                bool temp = child1[j];
+                child1[j] = child2[j];
+                child2[j] = temp;
             }
         }
         exchange = !exchange;
@@ -43,7 +45,9 @@ std::pair<BitString, BitString> MultiPointCrossover::crossover(const BitString& 
     // Handle the last segment
     if (exchange && !points.empty()) {
         for (size_t j = points.back(); j < length; ++j) {
-            std::swap(child1[j], child2[j]);
+            bool temp = child1[j];
+            child1[j] = child2[j];
+            child2[j] = temp;
         }
     }
     

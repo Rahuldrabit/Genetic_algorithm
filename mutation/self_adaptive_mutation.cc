@@ -6,12 +6,12 @@
 SelfAdaptiveMutation::SelfAdaptiveIndividual::SelfAdaptiveIndividual(size_t size, double initial_sigma)
     : genes(size), sigma(initial_sigma) {
     if (initial_sigma <= 0.0) {
-        throw BaseMutation::InvalidParameterException("Initial sigma must be positive");
+        throw MutationOperator::InvalidParameterException("Initial sigma must be positive");
     }
 }
 
 SelfAdaptiveMutation::SelfAdaptiveMutation(unsigned int seed) 
-    : BaseMutation(seed), normal_dist(0.0, 1.0) {
+    : MutationOperator("SelfAdaptiveMutation", seed), normal_dist(0.0, 1.0) {
 }
 
 void SelfAdaptiveMutation::mutate(SelfAdaptiveIndividual& individual,

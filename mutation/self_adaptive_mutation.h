@@ -11,7 +11,7 @@
  * the strategy parameters (mutation step sizes). It's commonly used
  * in Evolution Strategies (ES).
  */
-class SelfAdaptiveMutation : public BaseMutation {
+class SelfAdaptiveMutation : public MutationOperator {
 public:
     /**
      * @brief Structure representing an individual with self-adaptive parameters
@@ -51,13 +51,13 @@ public:
      * @brief Get the name of this mutation operator
      * @return String name of the operator
      */
-    std::string getName() const override { return "Self-Adaptive Mutation"; }
+    std::string getName() const { return "Self-Adaptive Mutation"; }
 
     /**
      * @brief Get description of this mutation operator
      * @return String description
      */
-    std::string getDescription() const override {
+    std::string getDescription() const {
         return "Evolves both objective variables and mutation step sizes";
     }
 

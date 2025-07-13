@@ -1,67 +1,96 @@
 #include "uniform_crossover.h"
+#include <stdexcept>
+
+// ============================================================================
+// UNIFORM CROSSOVER IMPLEMENTATION
+// ============================================================================
 
 std::pair<BitString, BitString> UniformCrossover::crossover(const BitString& parent1, const BitString& parent2) {
     if (parent1.size() != parent2.size()) {
-        logError("Parent chromosomes have different sizes");
-        return {parent1, parent2};
+        throw std::invalid_argument("Parents must have the same length");
     }
     
-    BitString child1 = parent1;
-    BitString child2 = parent2;
+    operation_count++;
+    
+    size_t length = parent1.size();
+    BitString child1, child2;
+    child1.reserve(length);
+    child2.reserve(length);
     
     std::uniform_real_distribution<double> dist(0.0, 1.0);
     
-    for (size_t i = 0; i < parent1.size(); ++i) {
+    // For each gene position, randomly choose which parent to take gene from
+    for (size_t i = 0; i < length; ++i) {
         if (dist(rng) < probability) {
-            child1[i] = parent2[i];
-            child2[i] = parent1[i];
+            // Take from first parent for child1, second parent for child2
+            child1.push_back(parent1[i]);
+            child2.push_back(parent2[i]);
+        } else {
+            // Take from second parent for child1, first parent for child2
+            child1.push_back(parent2[i]);
+            child2.push_back(parent1[i]);
         }
     }
     
-    logOperation("Binary uniform crossover with probability " + std::to_string(probability), true);
     return {child1, child2};
 }
 
 std::pair<RealVector, RealVector> UniformCrossover::crossover(const RealVector& parent1, const RealVector& parent2) {
     if (parent1.size() != parent2.size()) {
-        logError("Parent chromosomes have different sizes");
-        return {parent1, parent2};
+        throw std::invalid_argument("Parents must have the same length");
     }
     
-    RealVector child1 = parent1;
-    RealVector child2 = parent2;
+    operation_count++;
+    
+    size_t length = parent1.size();
+    RealVector child1, child2;
+    child1.reserve(length);
+    child2.reserve(length);
     
     std::uniform_real_distribution<double> dist(0.0, 1.0);
     
-    for (size_t i = 0; i < parent1.size(); ++i) {
+    // For each gene position, randomly choose which parent to take gene from
+    for (size_t i = 0; i < length; ++i) {
         if (dist(rng) < probability) {
-            child1[i] = parent2[i];
-            child2[i] = parent1[i];
+            // Take from first parent for child1, second parent for child2
+            child1.push_back(parent1[i]);
+            child2.push_back(parent2[i]);
+        } else {
+            // Take from second parent for child1, first parent for child2
+            child1.push_back(parent2[i]);
+            child2.push_back(parent1[i]);
         }
     }
     
-    logOperation("Real-valued uniform crossover with probability " + std::to_string(probability), true);
     return {child1, child2};
 }
 
 std::pair<IntVector, IntVector> UniformCrossover::crossover(const IntVector& parent1, const IntVector& parent2) {
     if (parent1.size() != parent2.size()) {
-        logError("Parent chromosomes have different sizes");
-        return {parent1, parent2};
+        throw std::invalid_argument("Parents must have the same length");
     }
     
-    IntVector child1 = parent1;
-    IntVector child2 = parent2;
+    operation_count++;
+    
+    size_t length = parent1.size();
+    IntVector child1, child2;
+    child1.reserve(length);
+    child2.reserve(length);
     
     std::uniform_real_distribution<double> dist(0.0, 1.0);
     
-    for (size_t i = 0; i < parent1.size(); ++i) {
+    // For each gene position, randomly choose which parent to take gene from
+    for (size_t i = 0; i < length; ++i) {
         if (dist(rng) < probability) {
-            child1[i] = parent2[i];
-            child2[i] = parent1[i];
+            // Take from first parent for child1, second parent for child2
+            child1.push_back(parent1[i]);
+            child2.push_back(parent2[i]);
+        } else {
+            // Take from second parent for child1, first parent for child2
+            child1.push_back(parent2[i]);
+            child2.push_back(parent1[i]);
         }
     }
     
-    logOperation("Integer uniform crossover with probability " + std::to_string(probability), true);
     return {child1, child2};
 }

@@ -1,7 +1,7 @@
 #ifndef INTERMEDIATE_RECOMBINATION_H
 #define INTERMEDIATE_RECOMBINATION_H
 
-#include "crossover_base.h"
+#include "base_crossover.h"
 
 class IntermediateRecombination : public CrossoverOperator {
 private:

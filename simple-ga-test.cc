@@ -9,11 +9,79 @@
 #include <cmath>
 #include <memory>
 
+
+// Base crossover functionality
+#include "crossover/base_crossover.h"
+
+// Bit-string/Vector crossover operators
+#include "crossover/one_point_crossover.h"
+#include "crossover/two_point_crossover.h"
+#include "crossover/multi_point_crossover.h"
+#include "crossover/uniform_crossover.h"
+#include "crossover/uniform_k_vector_crossover.h"
+
+// Real-valued crossover operators
+#include "crossover/blend_crossover.h"
+#include "crossover/simulated_binary_crossover.h"
+#include "crossover/line_recombination.h"
+#include "crossover/intermediate_recombination.h"
+
+// Permutation crossover operators
+#include "crossover/cut_and_crossfill_crossover.h"
+#include "crossover/partially_mapped_crossover.h"
+#include "crossover/edge_crossover.h"
+#include "crossover/order_crossover.h"
+#include "crossover/cycle_crossover.h"
+
+// Tree-based crossover operators
+#include "crossover/subtree_crossover.h"
+
+// Specialized crossover operators
+#include "crossover/diploid_recombination.h"
+#include "crossover/differential_evolution_crossover.h"
+
+
+// Base mutation functionality
+#include "mutation/base_mutation.h"
+
+// Binary representation mutation operators
+#include "mutation/bit_flip_mutation.h"
+
+// Integer representation mutation operators
+#include "mutation/random_resetting_mutation.h"
+#include "mutation/creep_mutation.h"
+
+// Real-valued representation mutation operators
+#include "mutation/uniform_mutation.h"
+#include "mutation/gaussian_mutation.h"
+
+// Permutation representation mutation operators
+#include "mutation/swap_mutation.h"
+#include "mutation/inversion_mutation.h"
+#include "mutation/insert_mutation.h"
+#include "mutation/scramble_mutation.h"
+
+// Self-adaptive mutation operators
+#include "mutation/self_adaptive_mutation.h"
+
+// Variable-length list mutation operators
+#include "mutation/list_mutation.h"
+
+
+
+// Base selection operator
+#include "selection-operator/base_selection.h"
+
+// Individual selection operators
+#include "selection-operator/tournament_selection.h"
+#include "selection-operator/roulette_wheel_selection.h"
+#include "selection-operator/rank_selection.h"
+#include "selection-operator/stochastic_universal_sampling.h"
+#include "selection-operator/elitism_selection.h"
+
+
 // Include our custom headers
 #include "simple-GA-Test/fitness-function.h"
-#include "selection-operator/selection-operator.h"
-#include "crossover/crossover.h"
-#include "mutation/mutation.h"
 
 // Simple GA configuration structure
 struct GAConfig {
@@ -136,8 +204,29 @@ std::unique_ptr<CrossoverOperator> createCrossoverOperator(const std::string& ty
     return std::make_unique<OnePointCrossover>();
 }
 
-std::unique_ptr<MutationOperators> createMutationOperator() {
-    return std::make_unique<MutationOperators>();
+// Factory function for creating mutation operators
+std::unique_ptr<MutationOperator> createMutationOperator(const std::string& type) {
+    if (type == "gaussian") {
+        return std::make_unique<GaussianMutation>();
+    } else if (type == "uniform") {
+        return std::make_unique<UniformMutation>();
+    } else if (type == "bit_flip") {
+        return std::make_unique<BitFlipMutation>();
+    } else if (type == "random_resetting") {
+        return std::make_unique<RandomResettingMutation>();
+    } else if (type == "creep") {
+        return std::make_unique<CreepMutation>();
+    } else if (type == "swap") {
+        return std::make_unique<SwapMutation>();
+    } else if (type == "insert") {
+        return std::make_unique<InsertMutation>();
+    } else if (type == "scramble") {
+        return std::make_unique<ScrambleMutation>();
+    } else if (type == "inversion") {
+        return std::make_unique<InversionMutation>();
+    }
+    // Default to gaussian
+    return std::make_unique<GaussianMutation>();
 }
 
 // Base class for all individual representations
@@ -194,6 +283,11 @@ public:
     
     BinaryIndividual(int length) : chromosome(length) {}
     
+    // Convert binary chromosome to Individual representation
+    // where each binary gene is represented as 0.0 or 1.0
+    // This is necessary for compatibility with the Individual class
+    // which expects a vector of doubles
+    // This method is used to convert the binary representation to a real-valued representation
     Individual toIndividual() const override {
         std::vector<double> realChrom(chromosome.size());
         for (size_t i = 0; i < chromosome.size(); ++i) {
@@ -202,6 +296,7 @@ public:
         return Individual(realChrom, fitness);
     }
     
+    // Convert binary chromosome to real-valued representation for compatibility with Individual class 
     void randomInitialize(std::mt19937& rng, const GAConfig& config) override {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         for (size_t i = 0; i < chromosome.size(); ++i) {
@@ -223,6 +318,7 @@ public:
     
     IntegerIndividual(int length) : chromosome(length) {}
     
+    // 
     Individual toIndividual() const override {
         std::vector<double> realChrom(chromosome.size());
         for (size_t i = 0; i < chromosome.size(); ++i) {
@@ -231,6 +327,7 @@ public:
         return Individual(realChrom, fitness);
     }
     
+    //
     void randomInitialize(std::mt19937& rng, const GAConfig& config) override {
         std::uniform_int_distribution<int> dist(static_cast<int>(config.lowerBound), 
                                                static_cast<int>(config.upperBound));
@@ -267,7 +364,7 @@ private:
     GAIndividual bestIndividual;
     
     // Operators - now using dynamic selection
-    std::unique_ptr<MutationOperators> mutationOp;
+    std::unique_ptr<MutationOperator> mutationOp;
     std::unique_ptr<CrossoverOperator> crossoverOp;
     
 public:
@@ -278,7 +375,7 @@ public:
                                    bestIndividual(cfg.chromosomeLength) {
         
         // Initialize operators based on config
-        mutationOp = createMutationOperator();
+        mutationOp = createMutationOperator(config.mutationType);
         crossoverOp = createCrossoverOperator(config.crossoverType);
         
         // Set function-specific bounds
@@ -395,58 +492,10 @@ public:
                     }
                 }
             } else {
-                // For other representations, use the specific crossover method
-                if (config.crossoverType == "one_point") {
-                    auto* onePointCrossover = dynamic_cast<OnePointCrossover*>(crossoverOp.get());
-                    if (onePointCrossover) {
-                        auto result = onePointCrossover->crossover(parent1.chromosome, parent2.chromosome);
-                        child1.chromosome = result.first;
-                        child2.chromosome = result.second;
-                    }
-                } else if (config.crossoverType == "two_point") {
-                    auto* twoPointCrossover = dynamic_cast<TwoPointCrossover*>(crossoverOp.get());
-                    if (twoPointCrossover) {
-                        auto result = twoPointCrossover->crossover(parent1.chromosome, parent2.chromosome);
-                        child1.chromosome = result.first;
-                        child2.chromosome = result.second;
-                    }
-                } else if (config.crossoverType == "uniform") {
-                    auto* uniformCrossover = dynamic_cast<UniformCrossover*>(crossoverOp.get());
-                    if (uniformCrossover) {
-                        auto result = uniformCrossover->crossover(parent1.chromosome, parent2.chromosome);
-                        child1.chromosome = result.first;
-                        child2.chromosome = result.second;
-                    }
-                } else if (config.crossoverType == "arithmetic") {
-                    auto* arithmeticCrossover = dynamic_cast<IntermediateRecombination*>(crossoverOp.get());
-                    if (arithmeticCrossover) {
-                        auto result = arithmeticCrossover->crossover(parent1.chromosome, parent2.chromosome);
-                        child1.chromosome = result.first;
-                        child2.chromosome = result.second;
-                    }
-                } else if (config.crossoverType == "blend") {
-                    auto* blendCrossover = dynamic_cast<BlendCrossover*>(crossoverOp.get());
-                    if (blendCrossover) {
-                        auto result = blendCrossover->crossover(parent1.chromosome, parent2.chromosome);
-                        child1.chromosome = result.first;
-                        child2.chromosome = result.second;
-                    }
-                } else if (config.crossoverType == "sbx") {
-                    auto* sbxCrossover = dynamic_cast<SimulatedBinaryCrossover*>(crossoverOp.get());
-                    if (sbxCrossover) {
-                        auto result = sbxCrossover->crossover(parent1.chromosome, parent2.chromosome);
-                        child1.chromosome = result.first;
-                        child2.chromosome = result.second;
-                    }
-                } else {
-                    // Default fallback to one point
-                    auto* onePointCrossover = dynamic_cast<OnePointCrossover*>(crossoverOp.get());
-                    if (onePointCrossover) {
-                        auto result = onePointCrossover->crossover(parent1.chromosome, parent2.chromosome);
-                        child1.chromosome = result.first;
-                        child2.chromosome = result.second;
-                    }
-                }
+                // For other representations, use the standard crossover
+                auto result = crossoverOp->crossover(parent1.chromosome, parent2.chromosome);
+                child1.chromosome = result.first;
+                child2.chromosome = result.second;
             }
             
             // Use the new clampToBounds method
@@ -464,81 +513,54 @@ public:
     
     // Mutation operation using dynamic operator
     void mutate(GAIndividual& individual) {
-        // Use the selected mutation type based on representation
         if (config.representation == GAConfig::REAL_VALUED) {
-            std::vector<double> bounds_lower(config.chromosomeLength, config.lowerBound);
-            std::vector<double> bounds_upper(config.chromosomeLength, config.upperBound);
-            
+            std::vector<double> bounds_lower(individual.chromosome.size(), config.lowerBound);
+            std::vector<double> bounds_upper(individual.chromosome.size(), config.upperBound);
             if (config.mutationType == "gaussian") {
-                mutationOp->gaussianMutation(individual.chromosome, config.mutationRate, 
-                                           0.1, bounds_lower, bounds_upper);
+                static_cast<GaussianMutation*>(mutationOp.get())->mutate(individual.chromosome, config.mutationRate, 0.1, bounds_lower, bounds_upper);
             } else if (config.mutationType == "uniform") {
-                mutationOp->uniformMutation(individual.chromosome, config.mutationRate, 
-                                          bounds_lower, bounds_upper);
-            } else {
-                // Default to gaussian for real-valued
-                mutationOp->gaussianMutation(individual.chromosome, config.mutationRate, 
-                                           0.1, bounds_lower, bounds_upper);
+                static_cast<UniformMutation*>(mutationOp.get())->mutate(individual.chromosome, config.mutationRate, bounds_lower, bounds_upper);
             }
         } else if (config.representation == GAConfig::BINARY) {
-            // For binary representation, we need to handle conversion
             std::vector<bool> binaryChrom(individual.chromosome.size());
             for (size_t i = 0; i < individual.chromosome.size(); ++i) {
                 binaryChrom[i] = individual.chromosome[i] > 0.5;
             }
-            
-            if (config.mutationType == "bit_flip") {
-                mutationOp->bitFlipMutation(binaryChrom, config.mutationRate);
-            }
-            
-            // Convert back to double
+            static_cast<BitFlipMutation*>(mutationOp.get())->mutate(binaryChrom, config.mutationRate);
             for (size_t i = 0; i < individual.chromosome.size(); ++i) {
                 individual.chromosome[i] = binaryChrom[i] ? 1.0 : 0.0;
             }
         } else if (config.representation == GAConfig::INTEGER) {
-            // For integer representation
             std::vector<int> intChrom(individual.chromosome.size());
             for (size_t i = 0; i < individual.chromosome.size(); ++i) {
                 intChrom[i] = static_cast<int>(individual.chromosome[i]);
             }
-            
             if (config.mutationType == "random_resetting") {
-                mutationOp->randomResettingMutation(intChrom, config.mutationRate, 
-                                                  static_cast<int>(config.lowerBound),
-                                                  static_cast<int>(config.upperBound));
+                static_cast<RandomResettingMutation*>(mutationOp.get())->mutate(intChrom, config.mutationRate, static_cast<int>(config.lowerBound), static_cast<int>(config.upperBound));
             } else if (config.mutationType == "creep") {
-                mutationOp->creepMutation(intChrom, config.mutationRate, 1,
-                                        static_cast<int>(config.lowerBound),
-                                        static_cast<int>(config.upperBound));
+                static_cast<CreepMutation*>(mutationOp.get())->mutate(intChrom, config.mutationRate, 1, static_cast<int>(config.lowerBound), static_cast<int>(config.upperBound));
             }
-            
-            // Convert back to double
             for (size_t i = 0; i < individual.chromosome.size(); ++i) {
                 individual.chromosome[i] = static_cast<double>(intChrom[i]);
             }
         } else if (config.representation == GAConfig::PERMUTATION) {
-            // For permutation representation
             std::vector<int> permChrom(individual.chromosome.size());
             for (size_t i = 0; i < individual.chromosome.size(); ++i) {
                 permChrom[i] = static_cast<int>(individual.chromosome[i]);
             }
-            
             if (config.mutationType == "swap") {
-                mutationOp->swapMutation(permChrom, config.mutationRate);
+                static_cast<SwapMutation*>(mutationOp.get())->mutate(permChrom, config.mutationRate);
             } else if (config.mutationType == "insert") {
-                mutationOp->insertMutation(permChrom, config.mutationRate);
+                static_cast<InsertMutation*>(mutationOp.get())->mutate(permChrom, config.mutationRate);
             } else if (config.mutationType == "scramble") {
-                mutationOp->scrambleMutation(permChrom, config.mutationRate);
+                static_cast<ScrambleMutation*>(mutationOp.get())->mutate(permChrom, config.mutationRate);
             } else if (config.mutationType == "inversion") {
-                mutationOp->inversionMutation(permChrom, config.mutationRate);
+                static_cast<InversionMutation*>(mutationOp.get())->mutate(permChrom, config.mutationRate);
             }
-            
-            // Convert back to double
             for (size_t i = 0; i < individual.chromosome.size(); ++i) {
                 individual.chromosome[i] = static_cast<double>(permChrom[i]);
             }
         }
-        
         individual.fitness = evaluateFitness(individual.chromosome);
     }
     
@@ -565,12 +587,11 @@ public:
         std::vector<unsigned int> selectedIndices;
         
         if (config.selectionType == "tournament") {
-            selectedIndices = TournamentSelection(individuals, 3); // Tournament size 3
+            selectedIndices = TournamentSelection::selectIndices(individuals, 3);
         } else if (config.selectionType == "roulette") {
-            selectedIndices = RouletteWheelSelection(individuals, 1);
+            selectedIndices = RouletteWheelSelection::selectIndices(individuals, 1);
         } else {
-            // Default to tournament
-            selectedIndices = TournamentSelection(individuals, 3);
+            selectedIndices = TournamentSelection::selectIndices(individuals, 3);
         }
         
         // Return the selected individual
@@ -609,7 +630,7 @@ public:
                 for (const auto& ind : population) {
                     individuals.push_back(ind.toIndividual());
                 }
-                std::vector<unsigned int> eliteIndices = ElitismSelection(individuals, numElites);
+                std::vector<unsigned int> eliteIndices = ElitismSelection::selectIndices(individuals, numElites);
                 for (unsigned int idx : eliteIndices) {
                     newPopulation.push_back(GAIndividual::fromIndividual(individuals[idx]));
                 }
