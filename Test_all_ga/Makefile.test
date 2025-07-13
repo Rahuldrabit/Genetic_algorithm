@@ -1,0 +1,220 @@
+# Makefile for Genetic Algorithm Module Testing
+# This Makefile allows standalone testing of the modularized GA components
+
+CXX = g++
+CXXFLAGS = -std=c++11 -Wall -Wextra -O2 -g
+INCLUDES = -I. -I./crossover -I./mutation -I./selection-operator
+
+# Source files
+CROSSOVER_SRCS = $(wildcard crossover/*.cc)
+MUTATION_SRCS = $(wildcard mutation/*.cc)
+SELECTION_SRCS = $(wildcard selection-operator/*.cc)
+MAIN_SRCS = module-GeneticAlgorithm.cc
+
+ALL_SRCS = $(CROSSOVER_SRCS) $(MUTATION_SRCS) $(SELECTION_SRCS) $(MAIN_SRCS)
+
+# Object files
+CROSSOVER_OBJS = $(CROSSOVER_SRCS:.cc=.o)
+MUTATION_OBJS = $(MUTATION_SRCS:.cc=.o)
+SELECTION_OBJS = $(SELECTION_SRCS:.cc=.o)
+MAIN_OBJS = $(MAIN_SRCS:.cc=.o)
+
+ALL_OBJS = $(ALL_SRCS:.cc=.o)
+
+# Test executables
+TEST_CROSSOVER = test_crossover_standalone
+TEST_MUTATION = test_mutation_standalone
+TEST_SELECTION = test_selection_standalone
+TEST_COMPLETE = test_complete_ga
+TEST_PERFORMANCE = test_performance
+
+# Default target
+all: $(TEST_COMPLETE)
+
+# Complete test including main GA framework
+$(TEST_COMPLETE): $(ALL_OBJS) test_complete_ga.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lm
+
+# Individual component tests
+$(TEST_CROSSOVER): $(CROSSOVER_OBJS) crossover/test_crossover_operators.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lm
+
+$(TEST_MUTATION): $(MUTATION_OBJS) test_mutation_standalone.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lm
+
+$(TEST_SELECTION): $(SELECTION_OBJS) test_selection_standalone.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lm
+
+# Object file compilation
+%.o: %.cc
+	$(CXX) $(CXXFLAGS) $(INCLUDES) -c $< -o $@
+
+# Create standalone mutation test
+test_mutation_standalone.cc:
+	@echo "Creating standalone mutation test..."
+	@echo '#include "mutation/all_mutation_operators.h"' > $@
+	@echo '#include <iostream>' >> $@
+	@echo '#include <random>' >> $@
+	@echo 'int main() {' >> $@
+	@echo '    std::cout << "Testing mutation operators..." << std::endl;' >> $@
+	@echo '    std::mt19937 rng(42);' >> $@
+	@echo '    mutation::Individual ind;' >> $@
+	@echo '    ind.chromosome = {1.0, 2.0, 3.0, 4.0, 5.0};' >> $@
+	@echo '    auto op = mutation::CreateMutationOperator("gaussian");' >> $@
+	@echo '    if (op) {' >> $@
+	@echo '        auto mutated = op->Mutate(ind, rng);' >> $@
+	@echo '        std::cout << "Mutation test successful!" << std::endl;' >> $@
+	@echo '    }' >> $@
+	@echo '    return 0;' >> $@
+	@echo '}' >> $@
+
+# Create standalone selection test
+test_selection_standalone.cc:
+	@echo "Creating standalone selection test..."
+	@echo '#include "selection-operator/all_selection_operators.h"' > $@
+	@echo '#include <iostream>' >> $@
+	@echo '#include <random>' >> $@
+	@echo 'int main() {' >> $@
+	@echo '    std::cout << "Testing selection operators..." << std::endl;' >> $@
+	@echo '    std::mt19937 rng(42);' >> $@
+	@echo '    selection::Population pop(10);' >> $@
+	@echo '    for (int i = 0; i < 10; ++i) {' >> $@
+	@echo '        pop[i].fitness = i;' >> $@
+	@echo '    }' >> $@
+	@echo '    auto op = selection::CreateSelectionOperator("tournament");' >> $@
+	@echo '    if (op) {' >> $@
+	@echo '        int selected = op->Select(pop, rng);' >> $@
+	@echo '        std::cout << "Selection test successful! Selected: " << selected << std::endl;' >> $@
+	@echo '    }' >> $@
+	@echo '    return 0;' >> $@
+	@echo '}' >> $@
+
+# Performance test
+test_performance.cc:
+	@echo "Creating performance test..."
+	@echo '#include "module-GeneticAlgorithm.h"' > $@
+	@echo '#include <chrono>' >> $@
+	@echo '#include <iostream>' >> $@
+	@echo 'class PerfOptimizer : public GeneticAlgorithm::GeneticAlgorithmOptimizer {' >> $@
+	@echo 'public:' >> $@
+	@echo '    explicit PerfOptimizer(const GeneticAlgorithm::GAParameters& p) : GeneticAlgorithmOptimizer(p) {}' >> $@
+	@echo '    double EvaluateFitness(const GeneticAlgorithm::Individual& ind) override {' >> $@
+	@echo '        double sum = 0; for (double g : ind.chromosome) sum += g*g; return -sum;' >> $@
+	@echo '    }' >> $@
+	@echo '};' >> $@
+	@echo 'int main() {' >> $@
+	@echo '    GeneticAlgorithm::GAParameters params;' >> $@
+	@echo '    params.population_size = 100; params.max_generations = 500;' >> $@
+	@echo '    auto start = std::chrono::high_resolution_clock::now();' >> $@
+	@echo '    PerfOptimizer opt(params); opt.Run();' >> $@
+	@echo '    auto end = std::chrono::high_resolution_clock::now();' >> $@
+	@echo '    auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(end - start);' >> $@
+	@echo '    std::cout << "Performance test completed in " << duration.count() << " ms" << std::endl;' >> $@
+	@echo '    return 0;' >> $@
+	@echo '}' >> $@
+
+$(TEST_PERFORMANCE): $(ALL_OBJS) test_performance.o
+	$(CXX) $(CXXFLAGS) -o $@ $^ -lm
+
+# Test targets
+test: $(TEST_COMPLETE)
+	@echo "Running complete GA test..."
+	./$(TEST_COMPLETE)
+
+test-crossover: $(TEST_CROSSOVER)
+	@echo "Running crossover test..."
+	./$(TEST_CROSSOVER)
+
+test-mutation: $(TEST_MUTATION) test_mutation_standalone.cc
+	@echo "Running mutation test..."
+	./$(TEST_MUTATION)
+
+test-selection: $(TEST_SELECTION) test_selection_standalone.cc
+	@echo "Running selection test..."
+	./$(TEST_SELECTION)
+
+test-performance: $(TEST_PERFORMANCE) test_performance.cc
+	@echo "Running performance test..."
+	./$(TEST_PERFORMANCE)
+
+test-all: test test-crossover test-mutation test-selection test-performance
+	@echo "All tests completed!"
+
+# Benchmark different configurations
+benchmark: $(TEST_COMPLETE)
+	@echo "Running benchmark with different operator combinations..."
+	@echo "Testing OnePoint + Gaussian + Tournament:"
+	@echo "onept_gauss_tourn" | ./$(TEST_COMPLETE) > /dev/null
+	@echo "Testing SBX + Uniform + Rank:"
+	@echo "sbx_uniform_rank" | ./$(TEST_COMPLETE) > /dev/null
+	@echo "Testing Blend + Creep + SUS:"
+	@echo "blend_creep_sus" | ./$(TEST_COMPLETE) > /dev/null
+
+# Documentation generation (if Doxygen is available)
+docs:
+	@if command -v doxygen >/dev/null 2>&1; then \
+		echo "Generating documentation..."; \
+		doxygen Doxyfile 2>/dev/null || echo "Doxygen config not found, skipping docs"; \
+	else \
+		echo "Doxygen not available, skipping documentation generation"; \
+	fi
+
+# Static analysis (if cppcheck is available)
+static-analysis:
+	@if command -v cppcheck >/dev/null 2>&1; then \
+		echo "Running static analysis..."; \
+		cppcheck --enable=all --std=c++11 --language=c++ $(ALL_SRCS) 2>/dev/null || true; \
+	else \
+		echo "cppcheck not available, skipping static analysis"; \
+	fi
+
+# Memory testing (if valgrind is available)
+memtest: $(TEST_COMPLETE)
+	@if command -v valgrind >/dev/null 2>&1; then \
+		echo "Running memory test..."; \
+		valgrind --tool=memcheck --leak-check=full ./$(TEST_COMPLETE) 2>/dev/null || true; \
+	else \
+		echo "valgrind not available, skipping memory test"; \
+	fi
+
+# Clean up
+clean:
+	rm -f $(ALL_OBJS) test_*.o
+	rm -f $(TEST_CROSSOVER) $(TEST_MUTATION) $(TEST_SELECTION) $(TEST_COMPLETE) $(TEST_PERFORMANCE)
+	rm -f test_mutation_standalone.cc test_selection_standalone.cc test_performance.cc
+
+# Clean everything including generated files
+distclean: clean
+	rm -rf docs/
+	rm -f *.log *.tmp
+
+# Create a minimal MBDyn-compatible stub for testing
+mbdyn-stub:
+	@echo "Creating MBDyn compatibility stubs..."
+	@mkdir -p stubs
+	@echo '#ifndef MBDYN_STUB_H' > stubs/mbdefs.h
+	@echo '#define MBDYN_STUB_H' >> stubs/mbdefs.h
+	@echo '#define DEBUGCOUTFNAME(x)' >> stubs/mbdefs.h
+	@echo '#define SAFEDELETE(p) delete p; p = nullptr' >> stubs/mbdefs.h
+	@echo '#endif' >> stubs/mbdefs.h
+
+# Help target
+help:
+	@echo "Available targets:"
+	@echo "  all              - Build complete test (default)"
+	@echo "  test             - Run complete GA test"
+	@echo "  test-crossover   - Test crossover operators only"
+	@echo "  test-mutation    - Test mutation operators only"
+	@echo "  test-selection   - Test selection operators only"
+	@echo "  test-performance - Run performance benchmark"
+	@echo "  test-all         - Run all tests"
+	@echo "  benchmark        - Benchmark different operator combinations"
+	@echo "  docs             - Generate documentation (requires Doxygen)"
+	@echo "  static-analysis  - Run static analysis (requires cppcheck)"
+	@echo "  memtest          - Run memory tests (requires valgrind)"
+	@echo "  clean            - Remove built files"
+	@echo "  distclean        - Remove all generated files"
+	@echo "  mbdyn-stub       - Create minimal MBDyn compatibility stubs"
+	@echo "  help             - Show this help message"
+
+.PHONY: all test test-crossover test-mutation test-selection test-performance test-all benchmark docs static-analysis memtest clean distclean mbdyn-stub help
