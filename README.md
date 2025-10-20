@@ -1,6 +1,6 @@
-# Genetic Algorithm Framework
+# Genetic Algorithm Framework (C++)
 
-A comprehensive C++ implementation of genetic algorithms with support for multiple representation types and optimization operators.
+A reusable C++ genetic algorithm framework you can embed in any application. It exposes a small, modern C++ API and ships with a rich set of crossover, mutation, and selection operators.
 
 ## 🚀 Features
 
@@ -13,10 +13,17 @@ A comprehensive C++ implementation of genetic algorithms with support for multip
 ## 📁 Project Structure
 
 ```
-test-ga/
+Genetic_algorithm/
 ├── CMakeLists.txt              # Main CMake configuration
 ├── README.md                   # This file
-├── simple-ga-test.cc           # Main GA implementation
+├── include/ga/                 # Public framework headers (installable)
+│   ├── config.hpp              # Config, Bounds, Result, Fitness alias
+│   └── genetic_algorithm.hpp   # GeneticAlgorithm class and factories
+├── src/
+│   └── genetic_algorithm.cpp   # Core GA engine implementation
+├── examples/
+│   └── minimal.cpp             # Tiny example app using the framework
+├── simple-ga-test.cc           # Legacy interactive demo (still works)
 ├── crossover/                  # Crossover operators
 │   ├── base_crossover.h/cc     # Base crossover interface
 │   ├── one_point_crossover.h/cc
@@ -75,8 +82,7 @@ cd test-ga
 #### Using CMake Directly
 
 ```bash
-# Clone or navigate to the project directory
-cd test-ga
+cd Genetic_algorithm
 
 # Create build directory
 mkdir build && cd build
@@ -87,7 +93,7 @@ cmake ..
 # Build the project
 cmake --build .
 
-# Run the genetic algorithm
+# Run the legacy demo
 ./bin/simple_ga_test
 ```
 
@@ -126,7 +132,8 @@ The project includes a convenient build script (`build.sh`) that automates the b
 
 ### CMake Targets
 
-- `simple-ga-test`: Main executable
+- `genetic_algorithm`: Static library (the framework)
+- `simple-ga-test`: Interactive demo executable
 - `run`: Build and run the GA test
 - `clean-results`: Remove output files
 - `install`: Install to system
@@ -137,7 +144,50 @@ cmake --build . --target run
 cmake --build . --target clean-results
 ```
 
-## 🎯 Usage Examples
+## 🎯 Using the framework in your code
+
+The public API is in `include/ga`. Example:
+
+```cpp
+#include <ga/genetic_algorithm.hpp>
+#include <cmath>
+
+static double rastrigin(const std::vector<double>& x) {
+  const double A = 10.0;
+  double sum = A * x.size();
+  for (double xi : x) sum += xi*xi - A*std::cos(2*M_PI*xi);
+  // convert minimization to maximization fitness
+  return 1000.0 / (1.0 + sum);
+}
+
+int main() {
+  ga::Config cfg;
+  cfg.populationSize = 60;
+  cfg.generations = 100;
+  cfg.dimension = 10;
+  cfg.bounds = {-5.12, 5.12};
+
+  ga::GeneticAlgorithm alg(cfg);
+  ga::Result res = alg.run(rastrigin);
+}
+```
+
+You can also compile and run the ready-made example:
+
+```bash
+cmake --build build -j
+./build/examples/minimal
+```
+
+To customize operators:
+
+```cpp
+#include <ga/genetic_algorithm.hpp>
+
+auto alg = ga::GeneticAlgorithm(cfg);
+alg.setCrossoverOperator(ga::makeTwoPointCrossover());
+alg.setMutationOperator(ga::makeUniformMutation());
+```
 
 ### Interactive Mode (Recommended)
 
@@ -174,33 +224,19 @@ echo -e "permutation\norder_crossover\nswap\ntournament" | ./bin/simple_ga_test
 
 ## 🔧 Configuration
 
-The genetic algorithm can be configured through the `GAConfig` structure:
+The framework uses `ga::Config`:
 
 ```cpp
-struct GAConfig {
-    int populationSize = 50;        // Population size
-    int generations = 50;           // Number of generations
-    int chromosomeLength = 10;      // Number of variables
-    double mutationRate = 0.01;     // Mutation probability
-    double crossoverRate = 0.8;     // Crossover probability
-    double eliteRatio = 0.1;        // Elite preservation ratio
-    
-    // Function bounds
-    double lowerBound = -5.12;
-    double upperBound = 5.12;
-    
-    // Function and representation selection
-    enum FunctionType { RASTRIGIN, ACKLEY, SCHWEFEL } function = RASTRIGIN;
-    enum RepresentationType { BINARY, REAL_VALUED, INTEGER, PERMUTATION } representation = REAL_VALUED;
-    
-    // Operator selections (auto-validated)
-    std::string crossoverType = "one_point";
-    std::string mutationType = "gaussian";
-    std::string selectionType = "tournament";
-    
-    // Output settings
-    bool verbose = true;
-    std::string outputFile = "ga_results.txt";
+struct Bounds { double lower, upper; };
+struct Config {
+  int populationSize = 50;
+  int generations = 100;
+  int dimension = 10;
+  double crossoverRate = 0.8;
+  double mutationRate = 0.1;
+  Bounds bounds{-5.12, 5.12};
+  double eliteRatio = 0.05; // 5% elites
+  unsigned seed = 0;        // 0 -> random
 };
 ```
 
@@ -239,7 +275,7 @@ struct GAConfig {
 1. Create header and implementation files in the appropriate directory
 2. Inherit from the base operator class
 3. Implement required virtual methods
-4. Add to the factory functions in `simple-ga-test.cc`
+4. Optionally expose convenience factories alongside `ga::make*` helpers
 
 ### Adding New Fitness Functions
 

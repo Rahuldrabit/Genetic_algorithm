@@ -89,3 +89,12 @@ Permutation EdgeCrossover::performCrossover(const Permutation& parent1, const Pe
     
     return child;
 }
+
+std::pair<IntVector, IntVector> EdgeCrossover::crossover(const IntVector& parent1, const IntVector& parent2) {
+    // Edge recombination is permutation-based; treat IntVector as permutation
+    Permutation p1 = parent1;
+    Permutation p2 = parent2;
+    auto child1 = performCrossover(p1, p2);
+    auto child2 = performCrossover(p2, p1);
+    return { child1, child2 };
+}

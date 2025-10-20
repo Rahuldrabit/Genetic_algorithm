@@ -12,21 +12,36 @@ set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
 
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR})
+include_directories(${CMAKE_SOURCE_DIR}/include)
 
 # Find source files
 file(GLOB_RECURSE CROSSOVER_SOURCES "crossover/*.cc")
 file(GLOB_RECURSE MUTATION_SOURCES "mutation/*.cc")
 file(GLOB_RECURSE SELECTION_SOURCES "selection-operator/*.cc")
 file(GLOB_RECURSE FITNESS_SOURCES "simple-GA-Test/fitness-fuction.cc")
+set(CORE_SOURCES
+    src/genetic_algorithm.cpp
+)
+
+# Build reusable library (framework)
+add_library(genetic_algorithm STATIC
+    ${CORE_SOURCES}
+    ${CROSSOVER_SOURCES}
+    ${MUTATION_SOURCES}
+    ${SELECTION_SOURCES}
+)
+target_include_directories(genetic_algorithm PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<INSTALL_INTERFACE:include>
+)
+set_target_properties(genetic_algorithm PROPERTIES OUTPUT_NAME "genetic_algorithm")
 
 # Main executable
 add_executable(simple-ga-test
     simple-ga-test.cc
     ${FITNESS_SOURCES}
-    ${CROSSOVER_SOURCES}
-    ${MUTATION_SOURCES}
-    ${SELECTION_SOURCES}
 )
+target_link_libraries(simple-ga-test PRIVATE genetic_algorithm)
 
 # Set target properties
 set_target_properties(simple-ga-test PROPERTIES
@@ -36,14 +51,38 @@ set_target_properties(simple-ga-test PROPERTIES
 
 # Add compiler-specific flags
 if(CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+    target_compile_options(genetic_algorithm PRIVATE -fPIC)
     target_compile_options(simple-ga-test PRIVATE -fPIC)
 elseif(CMAKE_CXX_COMPILER_ID STREQUAL "Clang")
+    target_compile_options(genetic_algorithm PRIVATE -fPIC)
     target_compile_options(simple-ga-test PRIVATE -fPIC)
 endif()
 
 # Install target
-install(TARGETS simple-ga-test
+install(TARGETS genetic_algorithm simple-ga-test
+    EXPORT GeneticAlgorithmTargets
     RUNTIME DESTINATION bin
+    ARCHIVE DESTINATION lib
+    LIBRARY DESTINATION lib
+)
+install(DIRECTORY ${CMAKE_SOURCE_DIR}/include/ DESTINATION include)
+install(EXPORT GeneticAlgorithmTargets
+    NAMESPACE Genetic::
+    DESTINATION lib/cmake/GeneticAlgorithm
+)
+
+# Examples
+add_executable(ga-minimal examples/minimal.cpp)
+target_link_libraries(ga-minimal PRIVATE genetic_algorithm)
+set_target_properties(ga-minimal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
+)
+
+# Tests (lightweight sanity checks)
+add_executable(operators-sanity tests/operators_sanity.cc)
+target_link_libraries(operators-sanity PRIVATE genetic_algorithm)
+set_target_properties(operators-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
 )
 
 # Add custom targets

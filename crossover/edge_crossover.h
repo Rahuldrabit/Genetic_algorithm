@@ -11,6 +11,7 @@ public:
         : CrossoverOperator("EdgeCrossover", seed) {}
     
     Permutation performCrossover(const Permutation& parent1, const Permutation& parent2);
+    std::pair<IntVector, IntVector> crossover(const IntVector& parent1, const IntVector& parent2) override;
     
 private:
     std::map<int, std::set<int>> buildEdgeTable(const Permutation& parent1, const Permutation& parent2);
