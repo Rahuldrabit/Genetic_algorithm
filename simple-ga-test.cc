@@ -297,14 +297,14 @@ public:
     }
     
     // Convert binary chromosome to real-valued representation for compatibility with Individual class 
-    void randomInitialize(std::mt19937& rng, const GAConfig& config) override {
+    void randomInitialize(std::mt19937& rng, const GAConfig& /*config*/) override {
         std::uniform_real_distribution<double> dist(0.0, 1.0);
         for (size_t i = 0; i < chromosome.size(); ++i) {
             chromosome[i] = dist(rng) < 0.5;
         }
     }
     
-    void clampToBounds(const GAConfig& config) override {
+    void clampToBounds(const GAConfig& /*config*/) override {
         // Binary values don't need clamping
     }
     

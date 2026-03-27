@@ -1,1 +1,0 @@
-/usr/bin/c++  -Wall -Wextra -O3 -Wl,--dependency-file=CMakeFiles/simple-ga-test.dir/link.d "CMakeFiles/simple-ga-test.dir/simple-ga-test.cc.o" "CMakeFiles/simple-ga-test.dir/simple-GA-Test/fitness-fuction.cc.o" -o bin/simple_ga_test  libgenetic_algorithm.a

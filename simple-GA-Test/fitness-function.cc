@@ -1,11 +1,14 @@
 #include <iostream>
 #include <cmath>
+#include <random>
 #include <algorithm>
 #include "fitness-function.h"
 
 // generate random fitness value for testing between 0 and 100 based on a uniform distribution
 double generateRandomFitness() {
-    return static_cast<double>(rand()) / RAND_MAX * 100.0;
+    static std::mt19937 rng(std::random_device{}());
+    static std::uniform_real_distribution<double> dist(0.0, 100.0);
+    return dist(rng);
 }
 
 // Rastrigin function implementation

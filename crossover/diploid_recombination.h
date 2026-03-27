@@ -11,6 +11,9 @@ public:
     using DiploidChromosome = std::pair<BitString, BitString>;
     DiploidChromosome crossover(const DiploidChromosome& parent1, const DiploidChromosome& parent2);
     
+    // Bring base class overloads into scope to avoid hiding warnings
+    using CrossoverOperator::crossover;
+    
 private:
     BitString formGamete(const DiploidChromosome& parent);
 };

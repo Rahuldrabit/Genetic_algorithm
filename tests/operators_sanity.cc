@@ -109,7 +109,7 @@ int main(){
         auto a = make_perm(10), b = make_perm(10);
         auto is_perm = [](const std::vector<int>& v){
             std::vector<int> s = v; std::sort(s.begin(), s.end());
-            for (int i=0;i<(int)s.size();++i) if (s[i]!=i) return false; return true;
+            for (int i=0;i<(int)s.size();++i) { if (s[i]!=i) return false; } return true;
         };
         try { OrderCrossover op; auto c = op.crossover(a,b); bool ok = is_perm(c.first) && is_perm(c.second); print_status("OrderCrossover<Perm>", ok); if(!ok) all_ok=false; } catch(const std::exception& e){ print_status("OrderCrossover<Perm>", false, e.what()); all_ok=false; }
         try { PartiallyMappedCrossover op; auto c = op.crossover(a,b); bool ok = is_perm(c.first) && is_perm(c.second); print_status("PMX<Perm>", ok); if(!ok) all_ok=false; } catch(const std::exception& e){ print_status("PMX<Perm>", false, e.what()); all_ok=false; }

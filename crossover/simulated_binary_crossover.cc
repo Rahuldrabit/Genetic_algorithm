@@ -42,9 +42,7 @@ std::pair<RealVector, RealVector> SimulatedBinaryCrossover::crossover(const Real
         // Calculate beta using the distribution
         double beta = calculateBeta(u);
         
-        // Calculate offspring values
-        double alpha = 2.0 - std::pow(beta, -(eta_c + 1.0));
-        
+        // Calculate offspring values using SBX spread factor
         child1[i] = 0.5 * ((p1_val + p2_val) - beta * std::abs(p2_val - p1_val));
         child2[i] = 0.5 * ((p1_val + p2_val) + beta * std::abs(p2_val - p1_val));
     }
