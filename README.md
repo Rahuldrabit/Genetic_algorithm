@@ -13,6 +13,11 @@ A reusable C++ genetic algorithm framework you can embed in any application. It 
 - **Performance Benchmarks**: Comprehensive benchmark suite for operators and functions
 - **Production-Ready**: Modern C++17 with smart pointers and RAII
 
+## Technical Checklist and Roadmap
+
+- Complete feature checklist (DEAP-level + beyond): [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md)
+- Architecture overview and usage guidance: [ARCHITECTURE.md](ARCHITECTURE.md)
+
 ## 📁 Project Structure
 
 ```
@@ -185,6 +190,27 @@ cmake --build build -j
 ./build/examples/minimal
 ```
 
+NSGA-II minimal example:
+
+```bash
+cmake --build build -j
+./build/examples/ga-nsga2-minimal
+```
+
+High-level optimizer API example:
+
+```bash
+cmake --build build -j
+./build/examples/ga-optimizer-minimal
+```
+
+NSGA-III sanity test:
+
+```bash
+cmake --build build --target nsga3-sanity
+./build/tests/nsga3-sanity
+```
+
 To customize operators:
 
 ```cpp
@@ -194,6 +220,79 @@ auto alg = ga::GeneticAlgorithm(cfg);
 alg.setCrossoverOperator(ga::makeTwoPointCrossover());
 alg.setMutationOperator(ga::makeUniformMutation());
 ```
+
+### C API (Baseline Wrapper)
+
+The project includes a C-compatible API in `include/ga/c_api.h`.
+
+Key C API additions:
+- `ga_validate_config(...)` for pre-run argument checks
+- `ga_history_length(...)`, `ga_best_history(...)`, `ga_avg_history(...)` for convergence history export
+
+```c
+#include <ga/c_api.h>
+
+static double sphere_fitness(const double* genes, int length, void* user_data) {
+  (void)user_data;
+  double sum = 0.0;
+  for (int i = 0; i < length; ++i) {
+    sum += genes[i] * genes[i];
+  }
+  return 1000.0 / (1.0 + sum);
+}
+
+int main(void) {
+  ga_config_c cfg = {60, 100, 10, 0.8, 0.1, -5.12, 5.12, 0.05, 42};
+  if (ga_validate_config(&cfg) != GA_STATUS_OK) {
+    return 1;
+  }
+
+  ga_handle* h = ga_create(&cfg);
+  if (!h) {
+    return 1;
+  }
+
+  if (ga_run(h, sphere_fitness, 0) != GA_STATUS_OK) {
+    ga_destroy(h);
+    return 1;
+  }
+
+  double best = ga_best_fitness(h);
+
+  int n = ga_history_length(h);
+  double history[1024];
+  if (n > 0 && n <= 1024) {
+    (void)ga_best_history(h, history, n);
+  }
+
+  ga_destroy(h);
+  (void)best;
+  return 0;
+}
+```
+
+### NSGA-II Utilities (C++ Core)
+
+NSGA-II helper APIs are available in `include/ga/algorithms/moea/nsga2.hpp`:
+- non-dominated sorting
+- crowding distance
+- callback-based generation loop (`run(...)`)
+
+NSGA-III helper APIs are available in `include/ga/moea/nsga3.hpp`:
+- Das-Dennis reference point generation
+- reference-point environmental selection niching with intercept-based normalization
+
+High-level optimizer methods in `include/ga/api/optimizer.hpp` now include:
+- `optimizeMultiObjective(...)` (NSGA-II)
+- `optimizeMultiObjectiveNsga3(...)`
+
+Distributed evaluation backends in `include/ga/evaluation/distributed_executor.hpp`:
+- `LocalDistributedExecutor` (threaded local backend)
+- `ProcessDistributedExecutor` (true multi-process backend on POSIX)
+
+Python bindings (`python/ga_bindings.cpp`) also expose:
+- NSGA-III objective-space utilities (`Nsga3`, `nsga3_reference_points`, `nsga3_environmental_select_indices`)
+- checkpoint JSON API (`CheckpointState`, `checkpoint_save_json`, `checkpoint_load_json`)
 
 ### Interactive Mode (Recommended)
 
@@ -226,6 +325,24 @@ echo -e "integer\narithmetic\nrandom_resetting\ntournament" | ./bin/simple_ga_te
 #### Permutation Problems
 ```bash
 echo -e "permutation\norder_crossover\nswap\ntournament" | ./bin/simple_ga_test
+```
+
+#### C API Sanity Test
+```bash
+cmake --build build --target c-api-sanity
+./build/tests/c-api-sanity
+```
+
+#### Feature Foundation Sanity Test
+```bash
+cmake --build build --target features-foundation-sanity
+./build/tests/features-foundation-sanity
+```
+
+#### Process Distributed Backend Sanity Test
+```bash
+cmake --build build --target process-distributed-sanity
+./build/tests/process-distributed-sanity
 ```
 
 ## 🔧 Configuration
