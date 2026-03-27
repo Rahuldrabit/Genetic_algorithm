@@ -113,8 +113,11 @@ std::vector<unsigned int> RouletteWheelSelectionLegacy(std::vector<Individual>& 
     }
 
     // Select individuals based on their fitness proportion
+    static std::mt19937 rng(std::random_device{}());
+    std::uniform_real_distribution<double> dist(0.0, TotalFitness);
+
     for (unsigned int i = 0; i < NumSelections; ++i) {
-        double RandomValue = static_cast<double>(rand()) / RAND_MAX * TotalFitness;
+        double RandomValue = dist(rng);
         double CumulativeFitness = 0.0;
 
         for (unsigned int j = 0; j < PopulationSize; ++j) {
