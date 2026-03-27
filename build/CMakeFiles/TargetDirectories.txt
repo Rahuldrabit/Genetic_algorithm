@@ -1,0 +1,12 @@
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/genetic_algorithm.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/simple-ga-test.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/ga-minimal.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/operators-sanity.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/run.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/clean-results.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/edit_cache.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/rebuild_cache.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/list_install_components.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/install.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/install/local.dir
+/home/runner/work/Genetic_algorithm/Genetic_algorithm/build/CMakeFiles/install/strip.dir

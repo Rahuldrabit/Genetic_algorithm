@@ -1,0 +1,1 @@
+/usr/bin/c++  -Wall -Wextra -O3 -Wl,--dependency-file=CMakeFiles/ga-minimal.dir/link.d "CMakeFiles/ga-minimal.dir/examples/minimal.cpp.o" -o examples/ga-minimal  libgenetic_algorithm.a

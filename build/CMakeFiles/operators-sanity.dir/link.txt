@@ -1,0 +1,1 @@
+/usr/bin/c++  -Wall -Wextra -O3 -Wl,--dependency-file=CMakeFiles/operators-sanity.dir/link.d "CMakeFiles/operators-sanity.dir/tests/operators_sanity.cc.o" -o tests/operators-sanity  libgenetic_algorithm.a
