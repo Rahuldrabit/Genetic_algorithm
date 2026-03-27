@@ -82,6 +82,16 @@ set_target_properties(operators-sanity PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
 )
 
+# Benchmark suite
+add_executable(ga-benchmark
+    benchmark/benchmark_main.cc
+    benchmark/ga_benchmark.cc
+)
+target_link_libraries(ga-benchmark PRIVATE genetic_algorithm)
+set_target_properties(ga-benchmark PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+)
+
 # ---------------------------------------------------------------- Python bindings
 # Optional: only built when Python3 and pybind11 are available.
 find_package(Python3 COMPONENTS Interpreter Development QUIET)
@@ -119,6 +129,13 @@ add_custom_target(run
     DEPENDS simple-ga-test
     WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
     COMMENT "Running genetic algorithm test"
+)
+
+add_custom_target(benchmark
+    COMMAND ${CMAKE_BINARY_DIR}/bin/ga-benchmark
+    DEPENDS ga-benchmark
+    WORKING_DIRECTORY ${CMAKE_BINARY_DIR}/bin
+    COMMENT "Running genetic algorithm benchmarks"
 )
 
 add_custom_target(clean-results
