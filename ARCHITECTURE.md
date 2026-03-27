@@ -32,13 +32,42 @@ This is a **highly efficient, production-ready genetic algorithm framework** des
 #### 4. **Multi-Representation Support**
 ```cpp
 // Supported chromosome types:
-- BitString (std::vector<bool>)        // Binary optimization
-- RealVector (std::vector<double>)     // Continuous problems
-- IntVector (std::vector<int>)         // Discrete problems
-- Permutation (std::vector<int>)       // Ordering problems
+- BitString      (std::vector<bool>)        // Binary optimization
+- RealVector     (std::vector<double>)      // Continuous problems
+- IntVector      (std::vector<int>)         // Discrete problems
+- Permutation    (std::vector<int>)         // Ordering problems (TSP, scheduling)
+- Set            (std::set<int>)            // Subset-selection problems
+- Dictionary     (unordered_map<string,double>) // Named-parameter optimization
+- Tree           (ga::gp::ExprNode)         // Symbolic regression / GP
+- Graph          (vector<vector<int>>)      // Architecture / network search
 ```
 
-#### 5. **Language Interoperability**
+The `ga::Individual` base class provides a uniform interface:
+```cpp
+class Individual {
+public:
+    virtual double fitness() const = 0;
+    virtual std::unique_ptr<Individual> clone() const = 0;
+    virtual std::string toString() const = 0;
+};
+```
+Concrete sub-classes: `VectorIndividual`, `SetIndividual`, `DictIndividual`,
+`TreeIndividual`, `GraphIndividual`.
+
+#### 5. **Genetic Programming (GP) Sub-system**
+
+The GP engine (`include/ga/gp/`) provides:
+
+- **Expression tree** (`ExprNode`): prefix-tree nodes with value, type tag, and owned children
+- **Primitive set** (`PrimitiveSet`): functions (operators with arguments) and terminals (variables / constants)
+- **Strongly-typed GP**: `GPType` tags (`Real`, `Bool`, `Int`) enforced by `TypeChecker`
+- **Loosely-typed GP**: `GPType::Any` wildcard — any primitive can appear anywhere
+- **Ramped half-and-half** initialisation (industry standard)
+- **Subtree crossover**: random subtree swap between two parent trees
+- **Point mutation** (`PointMutation`): per-node random replacement with a same-arity primitive
+- **Depth limit enforcement**: offspring exceeding `maxTreeDepth` are replaced by a terminal
+
+#### 6. **Language Interoperability**
 - **C++17**: Primary implementation with modern features
 - **Python**: Full pybind11 bindings for scripting
 - **C**: Compatible types and interfaces for legacy code

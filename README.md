@@ -1,11 +1,14 @@
 # Genetic Algorithm Framework (C++)
 
-A reusable C++ genetic algorithm framework you can embed in any application. It exposes a small, modern C++ API and ships with a rich set of crossover, mutation, and selection operators.
+A reusable C++ genetic algorithm framework you can embed in any application. It exposes a small, modern C++ API and ships with a rich set of crossover, mutation, and selection operators, plus a full **Genetic Programming (GP)** engine.
 
 ## 🚀 Features
 
-- **Multi-Representation Support**: Binary, Real-valued, Integer, and Permutation representations
-- **Comprehensive Operators**: 35+ crossover, mutation, and selection operators
+- **Multi-Representation Support**: Binary, Real-valued, Integer, Permutation, **Set, Dictionary, Graph, and Tree** representations
+- **Polymorphic Individual Hierarchy**: `VectorIndividual`, `SetIndividual`, `DictIndividual`, `TreeIndividual`, `GraphIndividual` — all deriving from a common `ga::Individual` base class
+- **Genetic Programming (GP)**: Prefix expression-tree representation for symbolic regression and program evolution
+- **Strongly-Typed & Loosely-Typed GP**: Enforce type safety (`GPType::Real/Bool/Int`) or allow free-form combination
+- **Comprehensive Operators**: 35+ crossover, mutation, and selection operators, including `SubtreeCrossover` and `PointMutation` for GP
 - **Benchmark Functions**: Rastrigin, Ackley, Schwefel, Rosenbrock, and Sphere optimization problems
 - **Modern Build System**: CMake-based build configuration
 - **Cross-Platform**: Works on Linux, macOS, and Windows
@@ -21,14 +24,23 @@ Genetic_algorithm/
 ├── README.md                   # This file
 ├── include/ga/                 # Public framework headers (installable)
 │   ├── config.hpp              # Config, Bounds, Result, Fitness alias
-│   └── genetic_algorithm.hpp   # GeneticAlgorithm class and factories
+│   ├── genetic_algorithm.hpp   # GeneticAlgorithm class and factories
+│   ├── individual.hpp          # Polymorphic Individual class hierarchy
+│   └── gp/                     # Genetic Programming sub-system
+│       ├── expression_tree.hpp # ExprNode, PrimitiveSet, TypeChecker
+│       └── gp_engine.hpp       # GPConfig, GPResult, GPEngine
 ├── src/
-│   └── genetic_algorithm.cpp   # Core GA engine implementation
+│   ├── genetic_algorithm.cpp   # Core GA engine implementation
+│   ├── individual.cpp          # TreeIndividual method implementations
+│   └── gp/
+│       ├── expression_tree.cpp # GP tree evaluation
+│       └── gp_engine.cpp       # GP algorithm (init, crossover, mutation, loop)
 ├── examples/
 │   └── minimal.cpp             # Tiny example app using the framework
 ├── simple-ga-test.cc           # Legacy interactive demo (still works)
 ├── crossover/                  # Crossover operators
-│   ├── base_crossover.h/cc     # Base crossover interface
+│   ├── base_crossover.h/cc     # Base crossover interface + TreeNode
+│   ├── subtree_crossover.h/cc  # GP subtree crossover
 │   ├── one_point_crossover.h/cc
 │   ├── two_point_crossover.h/cc
 │   ├── uniform_crossover.h/cc
@@ -40,6 +52,7 @@ Genetic_algorithm/
 │   └── ... (15+ more operators)
 ├── mutation/                   # Mutation operators
 │   ├── base_mutation.h/cc      # Base mutation interface
+│   ├── point_mutation.h/cc     # GP point mutation (node replacement)
 │   ├── bit_flip_mutation.h/cc
 │   ├── gaussian_mutation.h/cc
 │   ├── uniform_mutation.h/cc
@@ -51,9 +64,12 @@ Genetic_algorithm/
 │   ├── roulette_wheel_selection.h/cc
 │   ├── rank_selection.h/cc
 │   └── ... (5+ more operators)
-├── benchmark/                  # Benchmark suite (NEW!)
+├── benchmark/                  # Benchmark suite
 │   ├── ga_benchmark.h/cc       # Comprehensive benchmarks
 │   └── benchmark_main.cc       # Benchmark executable
+├── tests/
+│   ├── operators_sanity.cc     # Sanity tests for all 35+ operators
+│   └── gp_sanity.cc            # Sanity tests for GP features
 └── simple-GA-Test/             # Test suite and fitness functions
     ├── fitness-function.h      # Fitness function declarations
     ├── fitness-fuction.cc      # Fitness function implementations
@@ -140,6 +156,8 @@ The project includes a convenient build script (`build.sh`) that automates the b
 
 - `genetic_algorithm`: Static library (the framework)
 - `simple-ga-test`: Interactive demo executable
+- `operators-sanity`: Sanity test for all 35+ classical operators
+- `gp-sanity`: Sanity test for GP features (expression trees, typed GP, individual hierarchy)
 - `run`: Build and run the GA test
 - `clean-results`: Remove output files
 - `install`: Install to system
@@ -148,6 +166,142 @@ The project includes a convenient build script (`build.sh`) that automates the b
 # Use custom targets
 cmake --build . --target run
 cmake --build . --target clean-results
+```
+
+## 🌳 Genetic Programming (GP)
+
+### Individual Representations
+
+The framework provides a polymorphic `ga::Individual` base class with five concrete types:
+
+| Type | Description | Use-case |
+|------|-------------|----------|
+| `VectorIndividual` | `std::vector<double>` gene vector | Continuous / array optimisation |
+| `SetIndividual` | `std::set<int>` | Subset-selection problems |
+| `DictIndividual` | `std::unordered_map<string,double>` | Named-parameter optimisation |
+| `TreeIndividual` | GP expression tree | Symbolic regression, program evolution |
+| `GraphIndividual` | Adjacency-list graph | Network / architecture search |
+
+```cpp
+#include <ga/individual.hpp>
+
+// Real-valued (Numpy-like array)
+ga::VectorIndividual vi({1.0, 2.0, 3.0},
+    [](const std::vector<double>& g){ return g[0]+g[1]+g[2]; });
+std::cout << vi.fitness(); // 6.0
+
+// Set chromosome
+ga::SetIndividual si({1,2,3},
+    [](const std::set<int>& s){ double r=0; for(int v:s) r+=v; return r; });
+
+// Dict chromosome
+ga::DictIndividual::GeneMap gm{{"lr", 0.01}, {"dropout", 0.5}};
+ga::DictIndividual di(gm, [](const ga::DictIndividual::GeneMap& m){
+    return 1.0 / m.at("lr"); });
+
+// Graph chromosome
+ga::GraphIndividual::AdjList adj{{1,2},{2},{}};
+ga::GraphIndividual gi(adj,
+    [](const ga::GraphIndividual::AdjList& a){ return (double)a.size(); });
+```
+
+### Expression Trees
+
+GP programs are represented as prefix expression trees (`ga::gp::ExprNode`).
+Build a primitive set, then let the GP engine evolve programs:
+
+```cpp
+#include <ga/gp/expression_tree.hpp>
+#include <ga/gp/gp_engine.hpp>
+#include <cmath>
+
+// Build (+ (* x y) 1)
+auto root = std::make_unique<ga::gp::ExprNode>("+", ga::gp::GPType::Real);
+auto mul  = std::make_unique<ga::gp::ExprNode>("*", ga::gp::GPType::Real);
+mul->children.push_back(std::make_unique<ga::gp::ExprNode>("x", ga::gp::GPType::Real));
+mul->children.push_back(std::make_unique<ga::gp::ExprNode>("y", ga::gp::GPType::Real));
+root->children.push_back(std::move(mul));
+root->children.push_back(std::make_unique<ga::gp::ExprNode>("1", ga::gp::GPType::Real));
+
+std::cout << root->toSExpr(); // (+ (* x y) 1)
+std::cout << root->size();    // 5
+std::cout << root->depth();   // 2
+```
+
+### Primitive Set
+
+```cpp
+// Use the built-in arithmetic set (+, -, *, /, sin, cos, terminals)
+auto pset = ga::gp::PrimitiveSet::makeArithmetic({"x", "y"});
+
+// Evaluate with variable values
+double val = ga::gp::evaluate(*root, pset, {2.0, 3.0}); // (* 2 3) + 1 = 7
+```
+
+You can also add custom primitives:
+
+```cpp
+pset.addFunction("exp2", ga::gp::GPType::Real, {ga::gp::GPType::Real},
+    [](const std::vector<double>& a){ return std::exp2(a[0]); });
+
+pset.addTerminal("PI", ga::gp::GPType::Real,
+    [](const std::vector<double>&){ return M_PI; });
+```
+
+### Strongly-Typed GP
+
+Set `cfg.stronglyTyped = true` to enforce that every parent–child type edge matches the primitive's declared argument types.  Use `ga::gp::TypeChecker` to validate trees:
+
+```cpp
+ga::gp::TypeChecker tc(pset);
+bool valid = tc.check(*root, ga::gp::GPType::Real); // true if all types agree
+```
+
+### Loosely-Typed GP
+
+Set `cfg.stronglyTyped = false` (default).  Any primitive can be combined freely; `GPType::Any` is the wildcard type.
+
+### Running the GP Engine
+
+```cpp
+#include <ga/gp/gp_engine.hpp>
+#include <cmath>
+
+auto pset = ga::gp::PrimitiveSet::makeArithmetic({"x"});
+
+ga::gp::GPConfig cfg;
+cfg.populationSize = 100;
+cfg.generations    = 50;
+cfg.maxTreeDepth   = 6;
+cfg.mutationRate   = 0.1;
+cfg.stronglyTyped  = false;  // loosely-typed (default)
+cfg.seed           = 42;
+
+// Fitness: symbolic regression towards x^2
+std::vector<double> xs = {1.0, 2.0, 3.0, 4.0, 5.0};
+ga::gp::GPEngine engine(cfg, pset);
+ga::gp::GPResult  res = engine.run([&](const ga::gp::ExprNode& tree){
+    double err = 0.0;
+    for (double xv : xs) {
+        double d = ga::gp::evaluate(tree, pset, {xv}) - xv*xv;
+        err += d*d;
+    }
+    return 1.0 / (1.0 + std::sqrt(err / xs.size()));
+});
+
+std::cout << "Best program : " << res.bestProgram()  << '\n';
+std::cout << "Best fitness : " << res.bestFitness     << '\n';
+```
+
+### GP Point Mutation
+
+`PointMutation` (in `mutation/point_mutation.h`) replaces individual tree nodes with randomly chosen compatible primitives, leaving the tree's arity structure intact:
+
+```cpp
+#include "mutation/point_mutation.h"
+
+PointMutation pm(/*seed=*/42);
+pm.mutate(tree, pset, /*per-node probability=*/0.1, /*stronglyTyped=*/false);
 ```
 
 ## 🎯 Using the framework in your code

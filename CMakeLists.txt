@@ -21,6 +21,9 @@ file(GLOB_RECURSE SELECTION_SOURCES "selection-operator/*.cc")
 file(GLOB_RECURSE FITNESS_SOURCES "simple-GA-Test/fitness-function.cc")
 set(CORE_SOURCES
     src/genetic_algorithm.cpp
+    src/individual.cpp
+    src/gp/expression_tree.cpp
+    src/gp/gp_engine.cpp
 )
 
 # Build reusable library (framework)
@@ -79,6 +82,13 @@ set_target_properties(ga-minimal PROPERTIES
 add_executable(operators-sanity tests/operators_sanity.cc)
 target_link_libraries(operators-sanity PRIVATE genetic_algorithm)
 set_target_properties(operators-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+)
+
+# GP sanity tests
+add_executable(gp-sanity tests/gp_sanity.cc)
+target_link_libraries(gp-sanity PRIVATE genetic_algorithm)
+set_target_properties(gp-sanity PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
 )
 
