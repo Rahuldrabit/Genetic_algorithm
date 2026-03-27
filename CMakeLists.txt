@@ -21,6 +21,8 @@ file(GLOB_RECURSE SELECTION_SOURCES "selection-operator/*.cc")
 file(GLOB_RECURSE FITNESS_SOURCES "simple-GA-Test/fitness-function.cc")
 set(CORE_SOURCES
     src/genetic_algorithm.cpp
+    src/c_api.cpp
+    src/algorithms/moea/nsga2.cpp
 )
 
 # Build reusable library (framework)
@@ -75,10 +77,52 @@ set_target_properties(ga-minimal PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
 )
 
+add_executable(ga-nsga2-minimal examples/nsga2_minimal.cpp)
+target_link_libraries(ga-nsga2-minimal PRIVATE genetic_algorithm)
+set_target_properties(ga-nsga2-minimal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
+)
+
+add_executable(ga-optimizer-minimal examples/optimizer_minimal.cpp)
+target_link_libraries(ga-optimizer-minimal PRIVATE genetic_algorithm)
+set_target_properties(ga-optimizer-minimal PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
+)
+
 # Tests (lightweight sanity checks)
 add_executable(operators-sanity tests/operators_sanity.cc)
 target_link_libraries(operators-sanity PRIVATE genetic_algorithm)
 set_target_properties(operators-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+)
+
+add_executable(nsga2-sanity tests/nsga2_sanity.cc)
+target_link_libraries(nsga2-sanity PRIVATE genetic_algorithm)
+set_target_properties(nsga2-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+)
+
+add_executable(nsga3-sanity tests/nsga3_sanity.cc)
+target_link_libraries(nsga3-sanity PRIVATE genetic_algorithm)
+set_target_properties(nsga3-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+)
+
+add_executable(c-api-sanity tests/c_api_sanity.cc)
+target_link_libraries(c-api-sanity PRIVATE genetic_algorithm)
+set_target_properties(c-api-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+)
+
+add_executable(features-foundation-sanity tests/features_foundation_sanity.cc)
+target_link_libraries(features-foundation-sanity PRIVATE genetic_algorithm)
+set_target_properties(features-foundation-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+)
+
+add_executable(process-distributed-sanity tests/process_distributed_sanity.cc)
+target_link_libraries(process-distributed-sanity PRIVATE genetic_algorithm)
+set_target_properties(process-distributed-sanity PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
 )
 

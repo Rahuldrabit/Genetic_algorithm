@@ -13,14 +13,50 @@
 #include <pybind11/functional.h>
 #include <pybind11/stl.h>
 
+#include <stdexcept>
+
 #include "ga/config.hpp"
 #include "ga/genetic_algorithm.hpp"
+#include "ga/algorithms/moea/nsga2.hpp"
+#include "ga/checkpoint/checkpoint.hpp"
+#include "ga/moea/nsga3.hpp"
 
 // Full type definitions needed by pybind11 for operator ownership transfer
 #include "mutation/base_mutation.h"
 #include "crossover/base_crossover.h"
 
 namespace py = pybind11;
+
+static std::vector<ga::Individual> objectivesToIndividuals(
+    const std::vector<std::vector<double>>& objectiveMatrix,
+    bool tagIndex = false) {
+    std::vector<ga::Individual> population;
+    population.reserve(objectiveMatrix.size());
+
+    for (std::size_t i = 0; i < objectiveMatrix.size(); ++i) {
+        const auto& objectives = objectiveMatrix[i];
+        if (objectives.empty()) {
+            throw std::invalid_argument("Objective vectors must be non-empty");
+        }
+        ga::Individual ind;
+        ind.evaluation.objectives = objectives;
+        if (tagIndex) {
+            ind.age = static_cast<int>(i);
+        }
+        population.push_back(std::move(ind));
+    }
+    return population;
+}
+
+static std::vector<std::vector<double>> individualsToObjectives(
+    const std::vector<ga::Individual>& individuals) {
+    std::vector<std::vector<double>> out;
+    out.reserve(individuals.size());
+    for (const auto& ind : individuals) {
+        out.push_back(ind.evaluation.objectives);
+    }
+    return out;
+}
 
 PYBIND11_MODULE(ga, m) {
     m.doc() = "Genetic Algorithm framework — C++ core with Python bindings";
@@ -93,6 +129,149 @@ PYBIND11_MODULE(ga, m) {
              py::arg("op"), "Set a custom crossover operator")
         .def("config", &ga::GeneticAlgorithm::config,
              py::return_value_policy::reference_internal, "Return the current Config");
+
+    // ------------------------------------------------------------------- NSGA-II
+    py::class_<ga::moea::Nsga2Config>(m, "Nsga2Config", "NSGA-II configuration")
+        .def(py::init<>())
+        .def_readwrite("population_size", &ga::moea::Nsga2Config::populationSize)
+        .def_readwrite("generations", &ga::moea::Nsga2Config::generations)
+        .def_readwrite("seed", &ga::moea::Nsga2Config::seed);
+
+    py::class_<ga::moea::Nsga2>(m, "Nsga2", "NSGA-II utility methods for objective-space operations")
+        .def(py::init<const ga::moea::Nsga2Config&>(), py::arg("config") = ga::moea::Nsga2Config{})
+        .def("non_dominated_sort_objectives",
+             [](const ga::moea::Nsga2& self, const std::vector<std::vector<double>>& objectiveMatrix) {
+                 auto population = objectivesToIndividuals(objectiveMatrix);
+                 return self.nonDominatedSort(population);
+             },
+             py::arg("objectives"),
+             "Run non-dominated sorting on objective vectors (minimization)")
+        .def("crowding_distance_objectives",
+             [](const ga::moea::Nsga2& self,
+                const std::vector<std::vector<double>>& objectiveMatrix,
+                const std::vector<std::size_t>& front) {
+                 auto population = objectivesToIndividuals(objectiveMatrix);
+                 return self.crowdingDistance(population, front);
+             },
+             py::arg("objectives"),
+             py::arg("front"),
+             "Compute crowding distance for one front over objective vectors");
+
+    m.def("nsga2_non_dominated_sort",
+          [](const std::vector<std::vector<double>>& objectiveMatrix) {
+              ga::moea::Nsga2 nsga2;
+              auto population = objectivesToIndividuals(objectiveMatrix);
+              return nsga2.nonDominatedSort(population);
+          },
+          py::arg("objectives"),
+          "Convenience function: non-dominated sorting in objective space");
+
+    m.def("nsga2_crowding_distance",
+          [](const std::vector<std::vector<double>>& objectiveMatrix,
+             const std::vector<std::size_t>& front) {
+              ga::moea::Nsga2 nsga2;
+              auto population = objectivesToIndividuals(objectiveMatrix);
+              return nsga2.crowdingDistance(population, front);
+          },
+          py::arg("objectives"),
+          py::arg("front"),
+          "Convenience function: crowding distance in objective space");
+
+    // ------------------------------------------------------------------- NSGA-III
+    py::class_<ga::moea::Nsga3>(m, "Nsga3", "NSGA-III utility methods for objective-space operations")
+        .def(py::init<ga::moea::Nsga2Config>(), py::arg("config") = ga::moea::Nsga2Config{})
+        .def_static("generate_reference_points",
+                    &ga::moea::Nsga3::generateDasDennisReferencePoints,
+                    py::arg("objective_count"),
+                    py::arg("divisions"),
+                    "Generate Das-Dennis reference points")
+        .def("non_dominated_sort_objectives",
+             [](const ga::moea::Nsga3& self,
+                const std::vector<std::vector<double>>& objectiveMatrix) {
+                 auto population = objectivesToIndividuals(objectiveMatrix);
+                 return self.nonDominatedSort(population);
+             },
+             py::arg("objectives"),
+             "Run non-dominated sorting on objective vectors (minimization)")
+        .def("environmental_select_objectives",
+             [](const ga::moea::Nsga3& self,
+                const std::vector<std::vector<double>>& objectiveMatrix,
+                std::size_t targetSize,
+                const std::vector<std::vector<double>>& referencePoints) {
+                 auto population = objectivesToIndividuals(objectiveMatrix);
+                 auto selected = self.environmentalSelect(population, targetSize, referencePoints);
+                 return individualsToObjectives(selected);
+             },
+             py::arg("objectives"),
+             py::arg("target_size"),
+             py::arg("reference_points"),
+             "Select next generation objective vectors using NSGA-III niching")
+        .def("environmental_select_indices",
+             [](const ga::moea::Nsga3& self,
+                const std::vector<std::vector<double>>& objectiveMatrix,
+                std::size_t targetSize,
+                const std::vector<std::vector<double>>& referencePoints) {
+                 auto population = objectivesToIndividuals(objectiveMatrix, true);
+                 auto selected = self.environmentalSelect(population, targetSize, referencePoints);
+                 std::vector<std::size_t> indices;
+                 indices.reserve(selected.size());
+                 for (const auto& ind : selected) {
+                     indices.push_back(static_cast<std::size_t>(ind.age));
+                 }
+                 return indices;
+             },
+             py::arg("objectives"),
+             py::arg("target_size"),
+             py::arg("reference_points"),
+             "Select indices into the input objective vectors using NSGA-III niching");
+
+    m.def("nsga3_reference_points",
+          &ga::moea::Nsga3::generateDasDennisReferencePoints,
+          py::arg("objective_count"),
+          py::arg("divisions"),
+          "Convenience function: generate NSGA-III Das-Dennis reference points");
+
+    m.def("nsga3_environmental_select_indices",
+          [](const std::vector<std::vector<double>>& objectiveMatrix,
+             std::size_t targetSize,
+             const std::vector<std::vector<double>>& referencePoints) {
+              ga::moea::Nsga3 nsga3;
+              auto population = objectivesToIndividuals(objectiveMatrix, true);
+              auto selected = nsga3.environmentalSelect(population, targetSize, referencePoints);
+              std::vector<std::size_t> indices;
+              indices.reserve(selected.size());
+              for (const auto& ind : selected) {
+                  indices.push_back(static_cast<std::size_t>(ind.age));
+              }
+              return indices;
+          },
+          py::arg("objectives"),
+          py::arg("target_size"),
+          py::arg("reference_points"),
+          "Convenience function: NSGA-III environmental selection over objective vectors");
+
+    // -------------------------------------------------------------- Checkpoint API
+    py::class_<ga::checkpoint::CheckpointState>(m, "CheckpointState", "Checkpoint serialization state")
+        .def(py::init<>())
+        .def_readwrite("config", &ga::checkpoint::CheckpointState::config)
+        .def_readwrite("result", &ga::checkpoint::CheckpointState::result)
+        .def_readwrite("generation", &ga::checkpoint::CheckpointState::generation)
+        .def_readwrite("rng_state", &ga::checkpoint::CheckpointState::rngState);
+
+    m.def("checkpoint_save_json",
+          [](const std::string& path, const ga::checkpoint::CheckpointState& state) {
+              ga::checkpoint::CheckpointManager::saveJson(path, state);
+          },
+          py::arg("path"),
+          py::arg("state"),
+          "Save checkpoint state as JSON");
+
+    m.def("checkpoint_load_json",
+          [](const std::string& path) {
+              return ga::checkpoint::CheckpointManager::loadJson(path);
+          },
+          py::arg("path"),
+          "Load checkpoint state from JSON");
 
     // ------------------------------------------------------- Operator factories
     m.def("make_gaussian_mutation", &ga::makeGaussianMutation,

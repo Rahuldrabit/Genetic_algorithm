@@ -46,6 +46,28 @@ def main():
         if i % 50 == 0 or i == len(result.best_history) - 1:
             print(f"  gen {i:3d}: {f:.4f}")
 
+    # NSGA-III utility demo in objective space
+    objectives = [
+        [0.02, 1.20],
+        [0.10, 0.80],
+        [0.35, 0.45],
+        [0.90, 0.10],
+    ]
+    refs = ga.nsga3_reference_points(2, 4)
+    picked = ga.nsga3_environmental_select_indices(objectives, 2, refs)
+    print(f"\nNSGA-III selected objective indices: {picked}")
+
+    # Checkpoint JSON demo
+    state = ga.CheckpointState()
+    state.config = cfg
+    state.result = result
+    state.generation = len(result.best_history) - 1
+    state.rng_state = "python-demo"
+    cp_path = os.path.join(os.path.dirname(__file__), "..", "build", "python_checkpoint.json")
+    ga.checkpoint_save_json(cp_path, state)
+    loaded = ga.checkpoint_load_json(cp_path)
+    print(f"Checkpoint JSON roundtrip generation: {loaded.generation}")
+
 
 if __name__ == "__main__":
     main()
