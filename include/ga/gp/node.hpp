@@ -17,6 +17,30 @@ struct Node {
     Node() = default;
     Node(std::string s, ValueType t) : symbol(std::move(s)), returnType(t) {}
 
+    Node(const Node& other) : symbol(other.symbol), returnType(other.returnType) {
+        children.reserve(other.children.size());
+        for (const auto& child : other.children) {
+            children.push_back(child ? child->clone() : nullptr);
+        }
+    }
+
+    Node& operator=(const Node& other) {
+        if (this == &other) {
+            return *this;
+        }
+        symbol = other.symbol;
+        returnType = other.returnType;
+        children.clear();
+        children.reserve(other.children.size());
+        for (const auto& child : other.children) {
+            children.push_back(child ? child->clone() : nullptr);
+        }
+        return *this;
+    }
+
+    Node(Node&&) noexcept = default;
+    Node& operator=(Node&&) noexcept = default;
+
     std::unique_ptr<Node> clone() const {
         auto out = std::make_unique<Node>(symbol, returnType);
         out->children.reserve(children.size());

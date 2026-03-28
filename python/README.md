@@ -41,6 +41,21 @@ python3 python/example.py
 
 Use `environmental_select_indices` when you want selected indices back into your original objective list.
 
+## Additional Python-Exposed Features
+
+The bindings now also expose these public framework APIs:
+
+- Core/representations: `Evaluation`, `Individual`, `IGenome`, `VectorGenome`, `BitsetGenome`, `PermutationGenome`, `SetGenome`, `MapGenome`, `NdArrayGenome`, `TreeGenome`
+- GP helpers: `ValueType`, `Signature`, `Primitive`, `Node`, `TreeBuilder`, `ADFPool`
+- Optimizer APIs: `Optimizer`, `OptimizerBuilder`, `MultiObjectiveResult`, `OptimizationResult`
+- Advanced algorithms: `Spea2`, `EvolutionStrategy`, `DiagonalCmaEs`, `MoCmaEs`
+- Supporting utilities: `ConstraintSet`, `AdaptiveRates`, `AdaptiveRateController`, `HybridOptimizer`, `CoevolutionEngine`, `ExperimentTracker`
+- Export/checkpoint helpers:
+  - `checkpoint_save_binary(path, state)`, `checkpoint_load_binary(path)`
+  - `export_fitness_curve_csv(best, avg, path)`
+  - `export_pareto_front_csv(objectives, path)`
+  - `export_diversity_csv(diversity, path)`
+
 ## Checkpoint JSON API
 
 - `ga.CheckpointState`
