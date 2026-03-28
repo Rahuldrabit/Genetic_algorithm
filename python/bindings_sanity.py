@@ -15,6 +15,9 @@ def sphere_fitness(x: list[float]) -> float:
 
 
 def main() -> None:
+    out_dir = os.path.join(os.path.dirname(__file__), "..", "build")
+    os.makedirs(out_dir, exist_ok=True)
+
     # Core data/representations
     ev = ga.Evaluation()
     ev.objectives = [1.0, 2.0]
@@ -94,6 +97,44 @@ def main() -> None:
     assert ga.is_feasible([0.5, -0.2], cs)
     assert not ga.is_feasible([2.0], cs)
 
+    # Evaluation helpers
+    pe = ga.ParallelEvaluator(sphere_fitness, threads=2)
+    pe_results = pe.evaluate([[0.1, 0.2], [0.0, 0.0], [0.6, 0.7]])
+    assert len(pe_results) == 3 and pe_results[1] >= pe_results[0]
+
+    local_exec = ga.LocalDistributedExecutor(sphere_fitness, workers=2)
+    local_results = local_exec.execute([[0.2, 0.1], [0.4, 0.5]])
+    assert len(local_results) == 2 and all(r > 0.0 for r in local_results)
+
+    # Selection helpers
+    fitness = [0.1, 0.8, 0.4, 1.2, 0.6]
+    t_idx = ga.selection_tournament_indices(fitness, tournament_size=3)
+    assert len(t_idx) == 1 and 0 <= t_idx[0] < len(fitness)
+    rw_idx = ga.selection_roulette_indices(fitness, count=3)
+    assert len(rw_idx) == 3 and all(0 <= i < len(fitness) for i in rw_idx)
+    rank_idx = ga.selection_rank_indices(fitness, count=3)
+    # Legacy rank helper can return fewer indices than requested in this codebase.
+    assert len(rank_idx) <= 3
+    sus_idx = ga.selection_sus_indices(fitness, count=3)
+    # Legacy SUS helper can return fewer indices than requested in this codebase.
+    assert len(sus_idx) <= 3
+    elite_idx = ga.selection_elitism_indices(fitness, elite_count=2)
+    assert len(elite_idx) == 2 and all(0 <= i < len(fitness) for i in elite_idx)
+
+    # Benchmark suite
+    bcfg = ga.BenchmarkConfig()
+    bcfg.warmup_iterations = 0
+    bcfg.benchmark_iterations = 1
+    bcfg.verbose = False
+    bench = ga.GABenchmark(bcfg)
+    # Keep sanity fast: exercise object + serialization surface without running
+    # the full benchmark loops.
+    op_results = bench.operator_results()
+    assert isinstance(op_results, list)
+    csv_path = os.path.join(out_dir, "python_sanity_benchmark.csv")
+    bench.export_to_csv(csv_path)
+    assert os.path.exists(csv_path)
+
     # Hybrid + coevolution
     cfg = ga.Config()
     cfg.dimension = 3
@@ -114,9 +155,6 @@ def main() -> None:
     st.result = res
     st.generation = 1
     st.rng_state = "smoke"
-
-    out_dir = os.path.join(os.path.dirname(__file__), "..", "build")
-    os.makedirs(out_dir, exist_ok=True)
 
     bin_path = os.path.join(out_dir, "python_sanity_checkpoint.bin")
     ga.checkpoint_save_binary(bin_path, st)

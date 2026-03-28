@@ -18,7 +18,7 @@ For features not yet exposed in the Python bindings, an explicit note is include
 | 3 | [Chromosome Representations](#3-chromosome-representations) | ✅ | ✅ (all genome types) |
 | 4 | [Crossover Operators](#4-crossover-operators) | ✅ | ⚠️ 2 factory operators exposed |
 | 5 | [Mutation Operators](#5-mutation-operators) | ✅ | ⚠️ 2 factory operators exposed |
-| 6 | [Selection Operators](#6-selection-operators) | ✅ | ❌ not exposed |
+| 6 | [Selection Operators](#6-selection-operators) | ✅ | ⚠️ helper functions exposed |
 | 7 | [Core GA Run and Results](#7-core-ga-run-and-results) | ✅ | ✅ |
 | 8 | [High-Level Optimizer API](#8-high-level-optimizer-api) | ✅ | ✅ |
 | 9 | [Multi-Objective: NSGA-II](#9-multi-objective-nsga-ii) | ✅ | ✅ (objective-space utils) |
@@ -31,13 +31,13 @@ For features not yet exposed in the Python bindings, an explicit note is include
 | 16 | [Adaptive Operators](#16-adaptive-operators) | ✅ | ✅ |
 | 17 | [Hybrid Optimization](#17-hybrid-optimization) | ✅ | ✅ |
 | 18 | [Constraint Handling](#18-constraint-handling) | ✅ | ✅ |
-| 19 | [Parallel and Distributed Evaluation](#19-parallel-and-distributed-evaluation) | ✅ | ❌ not exposed |
+| 19 | [Parallel and Distributed Evaluation](#19-parallel-and-distributed-evaluation) | ✅ | ✅ (`ParallelEvaluator`, `LocalDistributedExecutor`, `Optimizer.with_threads`) |
 | 20 | [Co-Evolution](#20-co-evolution) | ✅ | ✅ |
 | 21 | [Checkpointing](#21-checkpointing) | ✅ | ✅ |
 | 22 | [Experiment Tracking](#22-experiment-tracking) | ✅ | ✅ |
 | 23 | [Visualization and CSV Export](#23-visualization-and-csv-export) | ✅ | ✅ |
 | 24 | [Plugin Architecture](#24-plugin-architecture) | ✅ | ❌ not exposed |
-| 25 | [Benchmark Suite](#25-benchmark-suite) | ✅ | ❌ not exposed |
+| 25 | [Benchmark Suite](#25-benchmark-suite) | ✅ | ✅ (`BenchmarkConfig`, `GABenchmark`) |
 | 26 | [C API](#26-c-api) | ✅ | N/A (C only) |
 | 27 | [Reproducibility Controls](#27-reproducibility-controls) | ✅ | ✅ |
 
@@ -545,10 +545,36 @@ auto& ranked = rs.select(population);
 
 ### 6.2 Python
 
-> **Not available in Python bindings yet.**
-> Selection operators are not individually exposed to Python.
-> The `ga.GeneticAlgorithm` uses an internal tournament-style selection
-> that cannot be swapped from Python currently.
+Selection strategy classes are still C++-only, but Python now exposes helper
+functions that run the same selection logic over a fitness list and return the
+selected indices:
+
+- `ga.selection_tournament_indices(fitness, tournament_size=3)` (returns one index)
+- `ga.selection_roulette_indices(fitness, count)`
+- `ga.selection_rank_indices(fitness, count)`
+- `ga.selection_sus_indices(fitness, count)`  *(stochastic universal sampling)*
+- `ga.selection_elitism_indices(fitness, elite_count)`
+
+```python
+import ga
+
+fitness = [0.1, 0.8, 0.4, 1.2, 0.6]
+
+tournament_winner = ga.selection_tournament_indices(fitness, tournament_size=3)
+roulette_picks    = ga.selection_roulette_indices(fitness, count=3)
+rank_picks        = ga.selection_rank_indices(fitness, count=3)
+sus_picks         = ga.selection_sus_indices(fitness, count=3)
+elite_picks       = ga.selection_elitism_indices(fitness, elite_count=2)
+
+print("Tournament winner index:", tournament_winner)
+print("Roulette indices:", roulette_picks)
+print("Rank indices:", rank_picks)
+print("SUS indices:", sus_picks)
+print("Elite indices:", elite_picks)   # tends to include the best-fitness entries
+```
+
+> `ga.GeneticAlgorithm` still uses its internal selection pipeline. These helpers
+> are for analysis/custom Python loops where you need direct index selection.
 
 ---
 
@@ -1513,11 +1539,40 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> Parallel and distributed evaluators are implemented in
-> `include/ga/evaluation/` (C++ only).
-> As a workaround, Python's `concurrent.futures` can parallelize fitness calls
-> externally and pass results to a Python-level custom fitness function.
+Python exposes thread-parallel evaluators directly:
+
+- `ga.ParallelEvaluator(fitness, threads=...)`
+- `ga.LocalDistributedExecutor(evaluator, workers=...)`
+- plus optimizer-level threading via `ga.Optimizer.with_threads(...)`
+
+```python
+import ga
+
+def sphere(x):
+    return 1000.0 / (1.0 + sum(xi * xi for xi in x))
+
+batch = [[0.1, 0.2], [0.3, 0.4], [0.0, 0.0]]
+
+pe = ga.ParallelEvaluator(sphere, threads=4)
+print("ParallelEvaluator:", pe.evaluate(batch))
+
+lde = ga.LocalDistributedExecutor(sphere, workers=4)
+print("LocalDistributedExecutor:", lde.execute(batch))
+
+cfg = ga.Config()
+cfg.population_size = 120
+cfg.generations = 200
+cfg.dimension = 20
+cfg.bounds = ga.Bounds(-5.12, 5.12)
+result = (ga.Optimizer()
+    .with_config(cfg)
+    .with_threads(4)
+    .with_seed(42)
+    .optimize(sphere))
+print("Best fitness:", result.best_fitness)
+```
+
+> `ProcessDistributedExecutor` is still C++-only (POSIX/fork backend).
 
 ---
 
@@ -1899,30 +1954,26 @@ cmake --build build
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> The benchmark suite is implemented in `benchmark/` and exposed via the
-> `ga-benchmark` executable (C++ only).
->
-> You can replicate benchmark-style measurements in Python using the
-> `ga.GeneticAlgorithm` directly:
->
-> ```python
-> import ga, time
->
-> def sphere(x):
->     return 1000.0 / (1.0 + sum(xi**2 for xi in x))
->
-> for dim in [5, 10, 20]:
->     cfg = ga.Config()
->     cfg.population_size = 60
->     cfg.generations     = 100
->     cfg.dimension       = dim
->     cfg.bounds          = ga.Bounds(-5.12, 5.12)
->     t0 = time.perf_counter()
->     r  = ga.GeneticAlgorithm(cfg).run(sphere)
->     elapsed = time.perf_counter() - t0
->     print(f"dim={dim:2d}  best={r.best_fitness:.4f}  time={elapsed*1000:.1f}ms")
-> ```
+The benchmark suite is exposed in Python through `ga.BenchmarkConfig` and
+`ga.GABenchmark`:
+
+```python
+import ga
+
+cfg = ga.BenchmarkConfig()
+cfg.warmup_iterations = 1
+cfg.benchmark_iterations = 3
+cfg.verbose = False
+
+b = ga.GABenchmark(cfg)
+b.run_operator_benchmarks()
+print("Operator rows:", len(b.operator_results()))
+
+b.run_function_benchmarks()
+print("Function rows:", len(b.function_results()))
+
+b.export_to_csv("benchmark_results.csv")
+```
 
 ---
 
@@ -2048,7 +2099,7 @@ pip install pybind11
 # 2. Configure and build
 mkdir -p build && cd build
 cmake ..
-cmake --build . --target ga-python-bindings -j$(nproc)
+cmake --build . --target ga_python_module -j$(nproc)
 
 # 3. Add the build directory to PYTHONPATH
 export PYTHONPATH="$(pwd)/python:$PYTHONPATH"
@@ -2083,6 +2134,21 @@ python3 python/example.py
 | `ga.make_two_point_crossover` | Factory: two-point crossover |
 | `ga.make_gaussian_mutation` | Factory: Gaussian mutation |
 | `ga.make_uniform_mutation` | Factory: Uniform mutation |
+| **Evaluation** | |
+| `ga.ParallelEvaluator` | Threaded batch evaluator over candidate vectors |
+| `ga.LocalDistributedExecutor` | Threaded distributed executor over candidate batches |
+| **Selection Helpers** | |
+| `ga.selection_tournament_indices` | Tournament selection over fitness list |
+| `ga.selection_roulette_indices` | Roulette-wheel selection over fitness list |
+| `ga.selection_rank_indices` | Rank-based selection over fitness list |
+| `ga.selection_sus_indices` | Stochastic universal sampling over fitness list |
+| `ga.selection_elitism_indices` | Elitism/top-k selection over fitness list |
+| **Benchmark** | |
+| `ga.BenchmarkConfig` | Configure benchmark warmup/iterations/output |
+| `ga.BenchmarkResult` | Scalability benchmark summary row |
+| `ga.OperatorBenchmark` | Operator benchmark row |
+| `ga.FunctionBenchmark` | Function optimization benchmark row |
+| `ga.GABenchmark` | Run benchmark suite and export reports/CSV |
 | **Representations** | |
 | `ga.VectorGenome` | Real-valued genome (`double`) |
 | `ga.BitsetGenome` | Binary/bitset genome |

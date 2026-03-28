@@ -16,6 +16,7 @@
 #include <random>
 #include <stdexcept>
 #include <thread>
+#include <limits>
 
 #include "ga/config.hpp"
 #include "ga/genetic_algorithm.hpp"
@@ -26,6 +27,8 @@
 #include "ga/checkpoint/checkpoint.hpp"
 #include "ga/constraints/constraints.hpp"
 #include "ga/coevolution/coevolution.hpp"
+#include "ga/evaluation/distributed_executor.hpp"
+#include "ga/evaluation/parallel_evaluator.hpp"
 #include "ga/core/evaluation.hpp"
 #include "ga/core/genome.hpp"
 #include "ga/core/individual.hpp"
@@ -52,6 +55,12 @@
 // Full type definitions needed by pybind11 for operator ownership transfer
 #include "mutation/base_mutation.h"
 #include "crossover/base_crossover.h"
+#include "selection-operator/tournament_selection.h"
+#include "selection-operator/roulette_wheel_selection.h"
+#include "selection-operator/rank_selection.h"
+#include "selection-operator/stochastic_universal_sampling.h"
+#include "selection-operator/elitism_selection.h"
+#include "benchmark/ga_benchmark.h"
 
 namespace py = pybind11;
 
@@ -97,6 +106,27 @@ static std::vector<ga::api::Optimizer::Objective> pyObjectivesToCpp(const py::it
     }
     return objectives;
 }
+
+static std::vector<::Individual> fitnessToSelectionPopulation(const std::vector<double>& fitness) {
+    std::vector<::Individual> population;
+    population.reserve(fitness.size());
+    for (double f : fitness) {
+        population.emplace_back(f);
+    }
+    return population;
+}
+
+static unsigned int checkedCountToUInt(std::size_t value, const char* name) {
+    if (value > static_cast<std::size_t>(std::numeric_limits<unsigned int>::max())) {
+        throw std::out_of_range(std::string(name) + " exceeds unsigned int range");
+    }
+    return static_cast<unsigned int>(value);
+}
+
+using DoubleBatchEvaluator =
+    ga::evaluation::ParallelEvaluator<std::vector<double>,
+                                      double,
+                                      std::function<double(const std::vector<double>&)>>;
 
 PYBIND11_MODULE(ga, m) {
     m.doc() = "Genetic Algorithm framework — C++ core with Python bindings";
@@ -777,6 +807,90 @@ PYBIND11_MODULE(ga, m) {
     m.def("export_diversity_csv", &ga::visualization::exportDiversityCSV,
           py::arg("diversity"), py::arg("path"));
 
+    // ------------------------------------------------------- Evaluation helpers
+    py::class_<DoubleBatchEvaluator>(m, "ParallelEvaluator",
+                                     "Threaded batch evaluator over vector<double> candidates")
+        .def(py::init([](py::function fitness, std::size_t threads) {
+                 std::function<double(const std::vector<double>&)> wrapped =
+                     [fitness](const std::vector<double>& genes) {
+                         py::gil_scoped_acquire acquire;
+                         return fitness(genes).cast<double>();
+                     };
+                 return std::make_unique<DoubleBatchEvaluator>(std::move(wrapped), threads);
+             }),
+             py::arg("fitness"),
+             py::arg("threads") = std::thread::hardware_concurrency())
+        .def("evaluate", &DoubleBatchEvaluator::evaluate, py::arg("batch"),
+             py::call_guard<py::gil_scoped_release>(),
+             "Evaluate a batch of candidate vectors in parallel");
+
+    py::class_<ga::evaluation::LocalDistributedExecutor>(m, "LocalDistributedExecutor",
+                                                          "Local threaded distributed executor")
+        .def(py::init([](py::function evaluator, std::size_t workers) {
+                 ga::evaluation::LocalDistributedExecutor::EvaluateFn wrapped =
+                     [evaluator](const std::vector<double>& genes) {
+                         py::gil_scoped_acquire acquire;
+                         return evaluator(genes).cast<double>();
+                     };
+                 return std::make_unique<ga::evaluation::LocalDistributedExecutor>(
+                     std::move(wrapped), workers);
+             }),
+             py::arg("evaluator"),
+             py::arg("workers") = std::thread::hardware_concurrency())
+        .def("execute", &ga::evaluation::LocalDistributedExecutor::execute, py::arg("batch"),
+             py::call_guard<py::gil_scoped_release>(),
+             "Execute a batch of candidate vectors and return fitness values");
+
+    // ------------------------------------------------------- Benchmark suite
+    py::class_<BenchmarkConfig>(m, "BenchmarkConfig", "Benchmark configuration")
+        .def(py::init<>())
+        .def_readwrite("warmup_iterations", &BenchmarkConfig::warmupIterations)
+        .def_readwrite("benchmark_iterations", &BenchmarkConfig::benchmarkIterations)
+        .def_readwrite("verbose", &BenchmarkConfig::verbose)
+        .def_readwrite("csv_output", &BenchmarkConfig::csvOutput)
+        .def_readwrite("output_file", &BenchmarkConfig::outputFile);
+
+    py::class_<BenchmarkResult>(m, "BenchmarkResult", "Scalability benchmark aggregate result")
+        .def_readonly("name", &BenchmarkResult::name)
+        .def_readonly("category", &BenchmarkResult::category)
+        .def_readonly("avg_execution_time", &BenchmarkResult::avgExecutionTime)
+        .def_readonly("min_execution_time", &BenchmarkResult::minExecutionTime)
+        .def_readonly("max_execution_time", &BenchmarkResult::maxExecutionTime)
+        .def_readonly("iterations", &BenchmarkResult::iterations)
+        .def_readonly("throughput", &BenchmarkResult::throughput)
+        .def_readonly("standard_deviation", &BenchmarkResult::standardDeviation)
+        .def_readonly("success", &BenchmarkResult::success)
+        .def_readonly("error_message", &BenchmarkResult::errorMessage);
+
+    py::class_<OperatorBenchmark>(m, "OperatorBenchmark", "Operator-level benchmark result")
+        .def_readonly("operator_name", &OperatorBenchmark::operatorName)
+        .def_readonly("operator_type", &OperatorBenchmark::operatorType)
+        .def_readonly("avg_time", &OperatorBenchmark::avgTime)
+        .def_readonly("operations_per_second", &OperatorBenchmark::operationsPerSecond)
+        .def_readonly("iterations", &OperatorBenchmark::iterations)
+        .def_readonly("representation", &OperatorBenchmark::representation);
+
+    py::class_<FunctionBenchmark>(m, "FunctionBenchmark", "Function optimization benchmark result")
+        .def_readonly("function_name", &FunctionBenchmark::functionName)
+        .def_readonly("best_fitness", &FunctionBenchmark::bestFitness)
+        .def_readonly("avg_fitness", &FunctionBenchmark::avgFitness)
+        .def_readonly("generations_to_converge", &FunctionBenchmark::generationsToConverge)
+        .def_readonly("total_execution_time", &FunctionBenchmark::totalExecutionTime)
+        .def_readonly("best_solution", &FunctionBenchmark::bestSolution)
+        .def_readonly("convergence_history", &FunctionBenchmark::convergenceHistory);
+
+    py::class_<GABenchmark>(m, "GABenchmark", "Benchmark suite runner")
+        .def(py::init<const BenchmarkConfig&>(), py::arg("config") = BenchmarkConfig{})
+        .def("run_all_benchmarks", &GABenchmark::runAllBenchmarks)
+        .def("run_operator_benchmarks", &GABenchmark::runOperatorBenchmarks)
+        .def("run_function_benchmarks", &GABenchmark::runFunctionBenchmarks)
+        .def("run_scalability_benchmarks", &GABenchmark::runScalabilityBenchmarks)
+        .def("generate_report", &GABenchmark::generateReport)
+        .def("export_to_csv", &GABenchmark::exportToCSV, py::arg("filename"))
+        .def("operator_results", [](const GABenchmark& self) { return self.operatorResults(); })
+        .def("function_results", [](const GABenchmark& self) { return self.functionResults(); })
+        .def("scalability_results", [](const GABenchmark& self) { return self.scalabilityResults(); });
+
     // ------------------------------------------------------- Operator factories
     m.def("make_gaussian_mutation", &ga::makeGaussianMutation,
           py::arg("seed") = 0u,
@@ -790,4 +904,57 @@ PYBIND11_MODULE(ga, m) {
     m.def("make_two_point_crossover", &ga::makeTwoPointCrossover,
           py::arg("seed") = 0u,
           "Create a Two-Point crossover operator");
+
+    // ------------------------------------------------------- Selection helper APIs
+    m.def("selection_tournament_indices",
+          [](const std::vector<double>& fitness, std::size_t tournament_size) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return TournamentSelection::selectIndices(
+                  population, checkedCountToUInt(tournament_size, "tournament_size"));
+          },
+          py::arg("fitness"),
+          py::arg("tournament_size") = 3u,
+          "Tournament selection helper: returns one winner index from the tournament");
+
+    m.def("selection_roulette_indices",
+          [](const std::vector<double>& fitness, std::size_t count) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return RouletteWheelSelection::selectIndices(
+                  population, checkedCountToUInt(count, "count"));
+          },
+          py::arg("fitness"),
+          py::arg("count"),
+          "Roulette-wheel selection helper: returns selected indices");
+
+    m.def("selection_rank_indices",
+          [](const std::vector<double>& fitness, std::size_t count) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              // Intentionally route through legacy helper: in this codebase it
+              // returns stable original-population indices expected by callers.
+              return RankSelectionLegacy(population, checkedCountToUInt(count, "count"));
+          },
+          py::arg("fitness"),
+          py::arg("count"),
+          "Rank selection helper: returns selected indices");
+
+    m.def("selection_sus_indices",
+          [](const std::vector<double>& fitness, std::size_t count) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              // Intentionally route through legacy helper for index semantics
+              // consistent with existing selection utility callers.
+              return StochasticUniversalSamplingLegacy(population, checkedCountToUInt(count, "count"));
+          },
+          py::arg("fitness"),
+          py::arg("count"),
+          "Stochastic universal sampling helper: returns selected indices");
+
+    m.def("selection_elitism_indices",
+          [](const std::vector<double>& fitness, std::size_t elite_count) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return ElitismSelection::selectIndices(
+                  population, checkedCountToUInt(elite_count, "elite_count"));
+          },
+          py::arg("fitness"),
+          py::arg("elite_count"),
+          "Elitism helper: returns indices of top-fitness individuals");
 }
