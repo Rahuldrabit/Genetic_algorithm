@@ -94,6 +94,19 @@ def main() -> None:
     assert ga.is_feasible([0.5, -0.2], cs)
     assert not ga.is_feasible([2.0], cs)
 
+    # Selection helpers
+    fitness = [0.1, 0.8, 0.4, 1.2, 0.6]
+    t_idx = ga.selection_tournament_indices(fitness, tournament_size=3)
+    assert len(t_idx) == 1 and 0 <= t_idx[0] < len(fitness)
+    rw_idx = ga.selection_roulette_indices(fitness, count=3)
+    assert len(rw_idx) == 3 and all(0 <= i < len(fitness) for i in rw_idx)
+    rank_idx = ga.selection_rank_indices(fitness, count=3)
+    assert len(rank_idx) <= 3
+    sus_idx = ga.selection_sus_indices(fitness, count=3)
+    assert len(sus_idx) <= 3
+    elite_idx = ga.selection_elitism_indices(fitness, elite_count=2)
+    assert len(elite_idx) == 2 and all(0 <= i < len(fitness) for i in elite_idx)
+
     # Hybrid + coevolution
     cfg = ga.Config()
     cfg.dimension = 3

@@ -52,6 +52,11 @@
 // Full type definitions needed by pybind11 for operator ownership transfer
 #include "mutation/base_mutation.h"
 #include "crossover/base_crossover.h"
+#include "selection-operator/tournament_selection.h"
+#include "selection-operator/roulette_wheel_selection.h"
+#include "selection-operator/rank_selection.h"
+#include "selection-operator/stochastic_universal_sampling.h"
+#include "selection-operator/elitism_selection.h"
 
 namespace py = pybind11;
 
@@ -96,6 +101,15 @@ static std::vector<ga::api::Optimizer::Objective> pyObjectivesToCpp(const py::it
         });
     }
     return objectives;
+}
+
+static std::vector<::Individual> fitnessToSelectionPopulation(const std::vector<double>& fitness) {
+    std::vector<::Individual> population;
+    population.reserve(fitness.size());
+    for (double f : fitness) {
+        population.emplace_back(f);
+    }
+    return population;
 }
 
 PYBIND11_MODULE(ga, m) {
@@ -790,4 +804,53 @@ PYBIND11_MODULE(ga, m) {
     m.def("make_two_point_crossover", &ga::makeTwoPointCrossover,
           py::arg("seed") = 0u,
           "Create a Two-Point crossover operator");
+
+    // ------------------------------------------------------- Selection helper APIs
+    m.def("selection_tournament_indices",
+          [](const std::vector<double>& fitness, std::size_t tournamentSize) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return TournamentSelection::selectIndices(
+                  population, static_cast<unsigned int>(tournamentSize));
+          },
+          py::arg("fitness"),
+          py::arg("tournament_size") = 3u,
+          "Tournament selection helper: returns one winner index from the tournament");
+
+    m.def("selection_roulette_indices",
+          [](const std::vector<double>& fitness, std::size_t count) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return RouletteWheelSelection::selectIndices(
+                  population, static_cast<unsigned int>(count));
+          },
+          py::arg("fitness"),
+          py::arg("count"),
+          "Roulette-wheel selection helper: returns selected indices");
+
+    m.def("selection_rank_indices",
+          [](const std::vector<double>& fitness, std::size_t count) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return RankSelectionLegacy(population, static_cast<unsigned int>(count));
+          },
+          py::arg("fitness"),
+          py::arg("count"),
+          "Rank selection helper: returns selected indices");
+
+    m.def("selection_sus_indices",
+          [](const std::vector<double>& fitness, std::size_t count) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return StochasticUniversalSamplingLegacy(population, static_cast<unsigned int>(count));
+          },
+          py::arg("fitness"),
+          py::arg("count"),
+          "Stochastic universal sampling helper: returns selected indices");
+
+    m.def("selection_elitism_indices",
+          [](const std::vector<double>& fitness, std::size_t eliteCount) {
+              auto population = fitnessToSelectionPopulation(fitness);
+              return ElitismSelection::selectIndices(
+                  population, static_cast<unsigned int>(eliteCount));
+          },
+          py::arg("fitness"),
+          py::arg("elite_count"),
+          "Elitism helper: returns indices of top-fitness individuals");
 }

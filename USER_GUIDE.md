@@ -18,7 +18,7 @@ For features not yet exposed in the Python bindings, an explicit note is include
 | 3 | [Chromosome Representations](#3-chromosome-representations) | ✅ | ✅ (all genome types) |
 | 4 | [Crossover Operators](#4-crossover-operators) | ✅ | ⚠️ 2 factory operators exposed |
 | 5 | [Mutation Operators](#5-mutation-operators) | ✅ | ⚠️ 2 factory operators exposed |
-| 6 | [Selection Operators](#6-selection-operators) | ✅ | ❌ not exposed |
+| 6 | [Selection Operators](#6-selection-operators) | ✅ | ⚠️ helper functions exposed |
 | 7 | [Core GA Run and Results](#7-core-ga-run-and-results) | ✅ | ✅ |
 | 8 | [High-Level Optimizer API](#8-high-level-optimizer-api) | ✅ | ✅ |
 | 9 | [Multi-Objective: NSGA-II](#9-multi-objective-nsga-ii) | ✅ | ✅ (objective-space utils) |
@@ -545,10 +545,36 @@ auto& ranked = rs.select(population);
 
 ### 6.2 Python
 
-> **Not available in Python bindings yet.**
-> Selection operators are not individually exposed to Python.
-> The `ga.GeneticAlgorithm` uses an internal tournament-style selection
-> that cannot be swapped from Python currently.
+Selection strategy classes are still C++-only, but Python now exposes helper
+functions that run the same selection logic over a fitness list and return the
+selected indices:
+
+- `ga.selection_tournament_indices(fitness, tournament_size=3)` (returns one index)
+- `ga.selection_roulette_indices(fitness, count)`
+- `ga.selection_rank_indices(fitness, count)`
+- `ga.selection_sus_indices(fitness, count)`  *(stochastic universal sampling)*
+- `ga.selection_elitism_indices(fitness, elite_count)`
+
+```python
+import ga
+
+fitness = [0.1, 0.8, 0.4, 1.2, 0.6]
+
+tournament_winner = ga.selection_tournament_indices(fitness, tournament_size=3)
+roulette_picks    = ga.selection_roulette_indices(fitness, count=3)
+rank_picks        = ga.selection_rank_indices(fitness, count=3)
+sus_picks         = ga.selection_sus_indices(fitness, count=3)
+elite_picks       = ga.selection_elitism_indices(fitness, elite_count=2)
+
+print("Tournament winner index:", tournament_winner)
+print("Roulette indices:", roulette_picks)
+print("Rank indices:", rank_picks)
+print("SUS indices:", sus_picks)
+print("Elite indices:", elite_picks)   # tends to include the best-fitness entries
+```
+
+> `ga.GeneticAlgorithm` still uses its internal selection pipeline. These helpers
+> are for analysis/custom Python loops where you need direct index selection.
 
 ---
 
@@ -2102,6 +2128,12 @@ python3 python/example.py
 | `ga.make_two_point_crossover` | Factory: two-point crossover |
 | `ga.make_gaussian_mutation` | Factory: Gaussian mutation |
 | `ga.make_uniform_mutation` | Factory: Uniform mutation |
+| **Selection Helpers** | |
+| `ga.selection_tournament_indices` | Tournament selection over fitness list |
+| `ga.selection_roulette_indices` | Roulette-wheel selection over fitness list |
+| `ga.selection_rank_indices` | Rank-based selection over fitness list |
+| `ga.selection_sus_indices` | Stochastic universal sampling over fitness list |
+| `ga.selection_elitism_indices` | Elitism/top-k selection over fitness list |
 | **Representations** | |
 | `ga.VectorGenome` | Real-valued genome (`double`) |
 | `ga.BitsetGenome` | Binary/bitset genome |
