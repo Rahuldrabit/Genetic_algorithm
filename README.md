@@ -1,5 +1,7 @@
 # Genetic Algorithm Framework (C++)
 
+![CI](https://github.com/Rahuldrabit/Genetic_algorithm/actions/workflows/ci.yml/badge.svg)
+
 A reusable C++ genetic algorithm framework you can embed in any application. It exposes a small, modern C++ API and ships with a rich set of crossover, mutation, and selection operators.
 
 ## 🚀 Features
