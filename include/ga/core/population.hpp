@@ -11,9 +11,10 @@ namespace core {
 using Population = std::vector<ga::Individual>;
 
 // Returns the index of the Individual with the best (lowest) first objective.
+// If the population is empty, returns pop.size() as an out-of-range sentinel.
 inline std::size_t bestIndex(const Population& pop) {
     if (pop.empty()) {
-        return 0;
+        return pop.size();
     }
     std::size_t best = 0;
     for (std::size_t i = 1; i < pop.size(); ++i) {
