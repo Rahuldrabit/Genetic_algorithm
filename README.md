@@ -13,8 +13,9 @@ A reusable C++ genetic algorithm framework you can embed in any application. It 
 - **Performance Benchmarks**: Comprehensive benchmark suite for operators and functions
 - **Production-Ready**: Modern C++17 with smart pointers and RAII
 
-## Technical Checklist and Roadmap
+## 📖 Documentation
 
+- **User Guide** (start here): [USER_GUIDE.md](USER_GUIDE.md) — how to use every feature with short examples
 - Complete feature checklist (DEAP-level + beyond): [FEATURE_CHECKLIST.md](FEATURE_CHECKLIST.md)
 - Architecture overview and usage guidance: [ARCHITECTURE.md](ARCHITECTURE.md)
 
