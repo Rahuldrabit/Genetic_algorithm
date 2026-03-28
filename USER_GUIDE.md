@@ -70,8 +70,8 @@ Build and run:
 ```bash
 mkdir build && cd build
 cmake ..
-cmake --build . -j
-./build/examples/minimal
+cmake --build .
+./build/bin/minimal
 ```
 
 ---
@@ -179,10 +179,18 @@ Each gene is independently inherited from either parent with equal probability.
 **Use with:** Binary, Real-valued, Integer.  
 **Tip:** Produces more diversity than point-based crossovers.
 
+```cpp
+alg.setCrossoverOperator(ga::makeUniformCrossover());
+```
+
 ### 4.4 Arithmetic Crossover
 
 Each child gene is a weighted average of the two parent genes: `α·p1 + (1−α)·p2`.  
 **Use with:** Real-valued, Integer.
+
+```cpp
+alg.setCrossoverOperator(ga::makeArithmeticCrossover());
+```
 
 ### 4.5 Blend Crossover (BLX-α)
 
@@ -190,71 +198,127 @@ Extends the search range slightly beyond the parents, exploring values around th
 **Use with:** Real-valued.  
 **Tip:** α = 0.5 is a common default, giving good exploration.
 
+```cpp
+alg.setCrossoverOperator(ga::makeBlendCrossover(/*alpha=*/0.5));
+```
+
 ### 4.6 Simulated Binary Crossover (SBX)
 
 Mimics the behavior of one-point crossover for binary strings in real-valued space.  
 **Use with:** Real-valued.  
 **Tip:** Widely used in NSGA-II and other evolutionary algorithms.
 
+```cpp
+alg.setCrossoverOperator(ga::makeSimulatedBinaryCrossover(/*eta=*/2.0));
+```
+
 ### 4.7 Order Crossover (OX)
 
 Preserves the relative order of elements from one parent while filling the rest from the other.  
 **Use with:** Permutation.
+
+```cpp
+alg.setCrossoverOperator(ga::makeOrderCrossover());
+```
 
 ### 4.8 Partially Mapped Crossover (PMX)
 
 Preserves absolute position information by creating a partial mapping between the parents.  
 **Use with:** Permutation.
 
+```cpp
+alg.setCrossoverOperator(ga::makePartiallyMappedCrossover());
+```
+
 ### 4.9 Cycle Crossover (CX)
 
 Identifies cycles of corresponding positions between parents and alternates which parent supplies each cycle.  
 **Use with:** Permutation.
+
+```cpp
+alg.setCrossoverOperator(ga::makeCycleCrossover());
+```
 
 ### 4.10 Differential Evolution Crossover
 
 Perturbs a base individual using the difference of two others. Often used with the DE/rand/1 strategy.  
 **Use with:** Real-valued.
 
+```cpp
+alg.setCrossoverOperator(ga::makeDifferentialEvolutionCrossover(/*F=*/0.8, /*CR=*/0.9));
+```
+
 ### 4.11 Multi-Point Crossover
 
 Generalization of one- and two-point crossover: uses *k* random cut points.  
 **Use with:** Binary, Real-valued, Integer.
+
+```cpp
+alg.setCrossoverOperator(ga::makeMultiPointCrossover(/*k=*/3));
+```
 
 ### 4.12 Uniform K-Vector Crossover
 
 Applies uniform crossover independently to each gene dimension using a separate probability mask.  
 **Use with:** Real-valued.
 
+```cpp
+alg.setCrossoverOperator(ga::makeUniformKVectorCrossover());
+```
+
 ### 4.13 Edge Assembly Crossover (EAX)
 
 Preserves edges (adjacency pairs) from both parents.  
 **Use with:** Permutation (graph/TSP problems).
+
+```cpp
+alg.setCrossoverOperator(ga::makeEdgeCrossover());
+```
 
 ### 4.14 Cut-and-Crossfill Crossover
 
 Cuts at a random point; the remaining genes are filled from the other parent in their original order.  
 **Use with:** Permutation.
 
+```cpp
+alg.setCrossoverOperator(ga::makeCutAndCrossfillCrossover());
+```
+
 ### 4.15 Line Recombination
 
 Offspring are placed on the line connecting the two parents in gene space.  
 **Use with:** Real-valued.
+
+```cpp
+alg.setCrossoverOperator(ga::makeLineRecombination());
+```
 
 ### 4.16 Intermediate Recombination
 
 Each offspring gene is a random blend between the corresponding parent genes.  
 **Use with:** Real-valued.
 
+```cpp
+alg.setCrossoverOperator(ga::makeIntermediateRecombination());
+```
+
 ### 4.17 Diploid Recombination
 
 Maintains a dominant and recessive copy of each gene; the expressed value follows dominance rules.  
 **Use with:** Binary.
 
+```cpp
+alg.setCrossoverOperator(ga::makeDiploidRecombination());
+```
+
 ### 4.18 Subtree Crossover
 
 Swaps randomly selected subtrees between two tree-based individuals.  
 **Use with:** Genetic Programming (tree representation).
+
+```cpp
+alg.setCrossoverOperator(ga::makeSubtreeCrossover());
+```
 
 ---
 
@@ -294,40 +358,72 @@ alg.setMutationOperator(ga::makeUniformMutation());
 Picks two random positions and swaps their values.  
 **Use with:** Permutation.
 
+```cpp
+alg.setMutationOperator(ga::makeSwapMutation());
+```
+
 ### 5.5 Insert Mutation
 
 Removes a gene from a random position and inserts it at another random position.  
 **Use with:** Permutation.
+
+```cpp
+alg.setMutationOperator(ga::makeInsertMutation());
+```
 
 ### 5.6 Scramble Mutation
 
 Selects a random subset of genes and shuffles them in place.  
 **Use with:** Permutation.
 
+```cpp
+alg.setMutationOperator(ga::makeScrambleMutation());
+```
+
 ### 5.7 Inversion Mutation
 
 Reverses the order of genes between two random positions.  
 **Use with:** Permutation.
+
+```cpp
+alg.setMutationOperator(ga::makeInversionMutation());
+```
 
 ### 5.8 Creep Mutation
 
 Adds or subtracts a small constant (creep) to an integer gene.  
 **Use with:** Integer.
 
+```cpp
+alg.setMutationOperator(ga::makeCreepMutation(/*step=*/1));
+```
+
 ### 5.9 Random Resetting Mutation
 
 Replaces a gene with a randomly chosen integer from a valid range.  
 **Use with:** Integer.
+
+```cpp
+alg.setMutationOperator(ga::makeRandomResettingMutation());
+```
 
 ### 5.10 Self-Adaptive Mutation
 
 Each individual carries its own mutation step-size, which also evolves alongside the genes. This is the foundation of Evolution Strategies.  
 **Use with:** Real-valued (ES contexts).
 
+```cpp
+alg.setMutationOperator(ga::makeSelfAdaptiveMutation());
+```
+
 ### 5.11 List Mutation
 
 General mutation for list-based genomes (insert, delete, or replace list elements).  
 **Use with:** Variable-length representations.
+
+```cpp
+alg.setMutationOperator(ga::makeListMutation());
+```
 
 ---
 
@@ -341,26 +437,47 @@ Randomly samples *k* individuals and picks the best among them. A common default
 **Use with:** All representations.  
 **Tip:** Higher tournament size (*k*) → stronger selection pressure.
 
+```cpp
+alg.setSelectionOperator(ga::makeTournamentSelection(/*k=*/3));
+```
+
 ### 6.2 Roulette Wheel Selection (Fitness-Proportionate)
 
 Each individual's probability of selection is proportional to its fitness.  
 **Use with:** All representations.  
 **Caution:** Sensitive to fitness scaling; a dominant individual can take over quickly.
 
+```cpp
+alg.setSelectionOperator(ga::makeRouletteWheelSelection());
+```
+
 ### 6.3 Rank Selection
 
 Individuals are ranked by fitness; selection probability is proportional to rank, not raw fitness. More stable than roulette wheel.  
 **Use with:** All representations.
+
+```cpp
+alg.setSelectionOperator(ga::makeRankSelection());
+```
 
 ### 6.4 Elitism Selection
 
 The top fraction of individuals (controlled by `eliteRatio`) is copied unchanged into the next generation.  
 **Use with:** All representations (built into the GA engine automatically).
 
+```cpp
+// Configured via Config; no manual operator set needed
+cfg.eliteRatio = 0.10;   // top 10% survive unchanged
+```
+
 ### 6.5 Stochastic Universal Sampling (SUS)
 
 Uses a single spin of a roulette wheel with *n* equally-spaced pointers, ensuring more uniform coverage.  
 **Use with:** All representations.
+
+```cpp
+alg.setSelectionOperator(ga::makeStochasticUniversalSampling());
+```
 
 ---
 
@@ -1037,7 +1154,7 @@ cd Genetic_algorithm
 # Configure and build
 mkdir build && cd build
 cmake ..
-cmake --build . -j$(nproc)
+cmake --build .   # add -j<N> for parallel jobs, e.g. -j4
 ```
 
 ### Using the Build Script
