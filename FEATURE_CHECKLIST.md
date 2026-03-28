@@ -12,22 +12,24 @@ Legend: implemented, partial, planned
 | Crossover operators (many) | implemented | `crossover/*.h`, `crossover/*.cc` |
 | Mutation operators (many) | implemented | `mutation/*.h`, `mutation/*.cc` |
 | Selection operators (classic) | implemented | `selection-operator/*.h`, `selection-operator/*.cc` |
-| Basic tree node + subtree crossover | partial | subtree crossover exists; typed GP node system/tree builder/ADF pool now added in `include/ga/gp/*` |
-| ES/CMA-ES | partial | self-adaptive mutation exists; now includes `(mu,lambda)/(mu+lambda)` ES and diagonal CMA-ES in `include/ga/es/*` |
-| Multi-objective (NSGA-II/III, SPEA2) | partial | NSGA-II run loop + NSGA-III reference-point niching with intercept-based normalization + SPEA2 + MO-CMA-ES wrappers added |
-| Co-evolution | partial | cooperative/competitive multi-population engine foundation added in `include/ga/coevolution/coevolution.hpp` |
-| Parallel/distributed evaluation | partial | serial/parallel evaluators plus local distributed executor, process-based distributed executor (POSIX), and backend interface added in `include/ga/evaluation/*` |
-| Checkpointing | partial | binary + JSON checkpoint save/load manager added in `include/ga/checkpoint/checkpoint.hpp` |
-| Adaptive operators | partial | adaptive rate controller added in `include/ga/adaptive/adaptive_policy.hpp` |
-| Hybrid optimization | partial | GA+local-search hybrid pipeline added in `include/ga/hybrid/hybrid_optimizer.hpp` |
-| Constraint handling | partial | hard/soft/repair constraint toolkit added in `include/ga/constraints/constraints.hpp` |
-| Experiment tracking | partial | C API history + experiment tracker outputs added in `include/ga/tracking/experiment_tracker.hpp` |
-| Visualization support | partial | CSV export helpers for fitness/pareto/diversity added in `include/ga/visualization/export.hpp` |
-| Plugin architecture | partial | generic plugin/factory registry added in `include/ga/plugin/registry.hpp` |
+| Basic tree node + subtree crossover | implemented | typed GP node system/tree builder/ADF pool in `include/ga/gp/*`; subtree crossover in `crossover/subtree_crossover.cc` |
+| ES/CMA-ES | implemented | `(mu,lambda)/(mu+lambda)` ES and diagonal CMA-ES in `include/ga/es/*` |
+| Multi-objective (NSGA-II/III, SPEA2) | implemented | NSGA-II (`src/algorithms/moea/nsga2.cpp`), NSGA-III, SPEA2, MO-CMA-ES in `include/ga/moea/*` |
+| Co-evolution | implemented | cooperative/competitive multi-population engine in `include/ga/coevolution/coevolution.hpp` |
+| Parallel/distributed evaluation | implemented | serial/parallel evaluators, local distributed executor, process-based distributed executor (POSIX) in `include/ga/evaluation/*` |
+| Checkpointing | implemented | binary + JSON checkpoint save/load manager in `include/ga/checkpoint/checkpoint.hpp` |
+| Adaptive operators | implemented | adaptive rate controller in `include/ga/adaptive/adaptive_policy.hpp` |
+| Hybrid optimization | implemented | GA+local-search hybrid pipeline in `include/ga/hybrid/hybrid_optimizer.hpp` |
+| Constraint handling | implemented | hard/soft/repair constraint toolkit in `include/ga/constraints/constraints.hpp` |
+| Experiment tracking | implemented | experiment tracker with CSV export in `include/ga/tracking/experiment_tracker.hpp` |
+| Visualization support | implemented | CSV export helpers for fitness/pareto/diversity in `include/ga/visualization/export.hpp` |
+| Plugin architecture | implemented | generic plugin/factory registry in `include/ga/plugin/registry.hpp` |
 | Benchmark suite | implemented | `benchmark/ga_benchmark.h`, `benchmark/ga_benchmark.cc` |
 | Reproducibility controls | implemented | seed-based RNG support in config |
-| High-level API | partial | fluent optimizer API now added for single objective + NSGA-II + NSGA-III workflows in `include/ga/api/optimizer.hpp` |
-| C and Python export path | partial | Python bindings present (now includes NSGA-III utils + checkpoint JSON APIs); baseline C ABI wrapper added (`include/ga/c_api.h`, `src/c_api.cpp`) |
+| Core representations (all types) | implemented | `VectorGenome`, `BitsetGenome`, `PermutationGenome`, `TreeGenome`, `SetGenome`, `MapGenome`, `NdArrayGenome` in `include/ga/representations/*` |
+| Core abstractions | implemented | `IGenome`, `Individual`, `IProblem`, `Evaluation` in `include/ga/core/*`; `Population`, `IEvaluator`, `IAlgorithm`, `OptimizationResult` added |
+| High-level API | implemented | fluent `Optimizer` API for single/multi-objective in `include/ga/api/optimizer.hpp`; `OptimizerBuilder` fluent builder in `include/ga/api/builder.hpp` |
+| C and Python export path | implemented | Python bindings (`python/ga_bindings.cpp`); C ABI wrapper (`include/ga/c_api.h`, `src/c_api.cpp`) |
 
 ## 2) Complete Checklist (What, Why, How)
 
