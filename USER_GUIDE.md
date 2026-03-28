@@ -71,7 +71,7 @@ Build and run:
 mkdir build && cd build
 cmake ..
 cmake --build .
-./build/bin/minimal
+./examples/ga-minimal
 ```
 
 ---
@@ -108,46 +108,38 @@ cfg.seed           = 42;   // reproducible
 
 ## 3. Chromosome Representations
 
-The framework supports four chromosome types. Choose the one that matches your problem.
+The framework supports four chromosome types across two levels of API:
 
-### 3.1 Binary (`BitString`)
+- **`ga::GeneticAlgorithm` (public API)** — always uses `std::vector<double>` (real-valued genes). The crossover and mutation operators you set via `setCrossoverOperator` / `setMutationOperator` must be compatible with `double` vectors.
+- **Legacy operator modules** (`crossover/`, `mutation/`, `selection-operator/`) — contain operator classes that also work with binary (`BitString`) and permutation (`std::vector<int>`) chromosomes. These are used directly when you build your own evolutionary loop (e.g., NSGA-II, GP, or the interactive demo).
+
+### 3.1 Binary (`BitString` = `std::vector<bool>`)
 
 A vector of `bool` values (`0` or `1`).  
 **Best for:** feature selection, binary optimization, combinatorial problems where choices are yes/no.
 
-```cpp
-// Operators compatible with binary: One-point, Two-point, Uniform crossover; Bit-flip mutation
-```
+Compatible operators: One-point, Two-point, Uniform crossover; Bit-flip mutation.
 
-### 3.2 Real-Valued (`RealVector`)
+### 3.2 Real-Valued (`std::vector<double>`)
 
-A vector of `double` values within configurable bounds.  
+A vector of `double` values within configurable bounds. **This is the type used by `ga::GeneticAlgorithm`.**  
 **Best for:** continuous function optimization, parameter tuning, neural network weights.
 
-```cpp
-// Compatible operators: Arithmetic, Blend (BLX-α), SBX, One-point, Two-point, Uniform crossover;
-//                        Gaussian, Uniform mutation
-```
+Compatible operators: Arithmetic, Blend (BLX-α), SBX, One-point, Two-point, Uniform crossover; Gaussian, Uniform mutation.
 
-### 3.3 Integer (`IntVector`)
+### 3.3 Integer (`std::vector<int>`)
 
 A vector of integer values.  
 **Best for:** discrete scheduling, resource allocation, index-based problems.
 
-```cpp
-// Compatible operators: One-point, Two-point, Uniform, Arithmetic crossover;
-//                        Random resetting, Creep mutation
-```
+Compatible operators: One-point, Two-point, Uniform, Arithmetic crossover; Random resetting, Creep mutation.
 
-### 3.4 Permutation (`Permutation`)
+### 3.4 Permutation (`std::vector<int>` with unique values)
 
 A vector of integers where each value appears exactly once — an ordering.  
 **Best for:** Traveling Salesman Problem (TSP), job scheduling, route optimization.
 
-```cpp
-// Compatible operators: Order (OX), Partially Mapped (PMX), Cycle (CX) crossover;
-//                        Swap, Insert, Scramble, Inversion mutation
-```
+Compatible operators: Order (OX), Partially Mapped (PMX), Cycle (CX) crossover; Swap, Insert, Scramble, Inversion mutation.
 
 ---
 
@@ -155,12 +147,15 @@ A vector of integers where each value appears exactly once — an ordering.
 
 Crossover combines two parent chromosomes to produce offspring. Select the operator that suits your representation.
 
+> **Factory vs. direct construction:** The public `ga::` namespace only has `makeOnePointCrossover()` and `makeTwoPointCrossover()` as convenience factories (declared in `include/ga/genetic_algorithm.hpp`). All other operators must be constructed directly by including their header and using `std::make_unique<ClassName>(...)`.
+
 ### 4.1 One-Point Crossover
 
 Splits both parents at a single random point and swaps their tails.  
 **Use with:** Binary, Real-valued, Integer.
 
 ```cpp
+// Public factory (include/ga/genetic_algorithm.hpp)
 alg.setCrossoverOperator(ga::makeOnePointCrossover());
 ```
 
@@ -170,6 +165,7 @@ Two random cut points divide the chromosome into three segments; the middle segm
 **Use with:** Binary, Real-valued, Integer.
 
 ```cpp
+// Public factory (include/ga/genetic_algorithm.hpp)
 alg.setCrossoverOperator(ga::makeTwoPointCrossover());
 ```
 
@@ -180,7 +176,8 @@ Each gene is independently inherited from either parent with equal probability.
 **Tip:** Produces more diversity than point-based crossovers.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeUniformCrossover());
+#include "crossover/uniform_crossover.h"
+alg.setCrossoverOperator(std::make_unique<UniformCrossover>(/*probability=*/0.5));
 ```
 
 ### 4.4 Arithmetic Crossover
@@ -189,7 +186,8 @@ Each child gene is a weighted average of the two parent genes: `α·p1 + (1−α
 **Use with:** Real-valued, Integer.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeArithmeticCrossover());
+#include "crossover/crossover_all.h"   // or the specific header
+alg.setCrossoverOperator(std::make_unique<ArithmeticCrossover>());
 ```
 
 ### 4.5 Blend Crossover (BLX-α)
@@ -199,7 +197,8 @@ Extends the search range slightly beyond the parents, exploring values around th
 **Tip:** α = 0.5 is a common default, giving good exploration.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeBlendCrossover(/*alpha=*/0.5));
+#include "crossover/blend_crossover.h"
+alg.setCrossoverOperator(std::make_unique<BlendCrossover>(/*alpha=*/0.5));
 ```
 
 ### 4.6 Simulated Binary Crossover (SBX)
@@ -209,7 +208,8 @@ Mimics the behavior of one-point crossover for binary strings in real-valued spa
 **Tip:** Widely used in NSGA-II and other evolutionary algorithms.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeSimulatedBinaryCrossover(/*eta=*/2.0));
+#include "crossover/simulated_binary_crossover.h"
+alg.setCrossoverOperator(std::make_unique<SimulatedBinaryCrossover>(/*eta=*/2.0));
 ```
 
 ### 4.7 Order Crossover (OX)
@@ -218,7 +218,8 @@ Preserves the relative order of elements from one parent while filling the rest 
 **Use with:** Permutation.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeOrderCrossover());
+#include "crossover/order_crossover.h"
+alg.setCrossoverOperator(std::make_unique<OrderCrossover>());
 ```
 
 ### 4.8 Partially Mapped Crossover (PMX)
@@ -227,7 +228,8 @@ Preserves absolute position information by creating a partial mapping between th
 **Use with:** Permutation.
 
 ```cpp
-alg.setCrossoverOperator(ga::makePartiallyMappedCrossover());
+#include "crossover/partially_mapped_crossover.h"
+alg.setCrossoverOperator(std::make_unique<PartiallyMappedCrossover>());
 ```
 
 ### 4.9 Cycle Crossover (CX)
@@ -236,7 +238,8 @@ Identifies cycles of corresponding positions between parents and alternates whic
 **Use with:** Permutation.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeCycleCrossover());
+#include "crossover/cycle_crossover.h"
+alg.setCrossoverOperator(std::make_unique<CycleCrossover>());
 ```
 
 ### 4.10 Differential Evolution Crossover
@@ -245,7 +248,8 @@ Perturbs a base individual using the difference of two others. Often used with t
 **Use with:** Real-valued.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeDifferentialEvolutionCrossover(/*F=*/0.8, /*CR=*/0.9));
+#include "crossover/differential_evolution_crossover.h"
+alg.setCrossoverOperator(std::make_unique<DifferentialEvolutionCrossover>(/*F=*/0.8, /*CR=*/0.9));
 ```
 
 ### 4.11 Multi-Point Crossover
@@ -254,7 +258,8 @@ Generalization of one- and two-point crossover: uses *k* random cut points.
 **Use with:** Binary, Real-valued, Integer.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeMultiPointCrossover(/*k=*/3));
+#include "crossover/multi_point_crossover.h"
+alg.setCrossoverOperator(std::make_unique<MultiPointCrossover>(/*k=*/3));
 ```
 
 ### 4.12 Uniform K-Vector Crossover
@@ -263,7 +268,8 @@ Applies uniform crossover independently to each gene dimension using a separate 
 **Use with:** Real-valued.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeUniformKVectorCrossover());
+#include "crossover/uniform_k_vector_crossover.h"
+alg.setCrossoverOperator(std::make_unique<UniformKVectorCrossover>());
 ```
 
 ### 4.13 Edge Assembly Crossover (EAX)
@@ -272,7 +278,8 @@ Preserves edges (adjacency pairs) from both parents.
 **Use with:** Permutation (graph/TSP problems).
 
 ```cpp
-alg.setCrossoverOperator(ga::makeEdgeCrossover());
+#include "crossover/edge_crossover.h"
+alg.setCrossoverOperator(std::make_unique<EdgeCrossover>());
 ```
 
 ### 4.14 Cut-and-Crossfill Crossover
@@ -281,7 +288,8 @@ Cuts at a random point; the remaining genes are filled from the other parent in 
 **Use with:** Permutation.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeCutAndCrossfillCrossover());
+#include "crossover/cut_and_crossfill_crossover.h"
+alg.setCrossoverOperator(std::make_unique<CutAndCrossfillCrossover>());
 ```
 
 ### 4.15 Line Recombination
@@ -290,7 +298,8 @@ Offspring are placed on the line connecting the two parents in gene space.
 **Use with:** Real-valued.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeLineRecombination());
+#include "crossover/line_recombination.h"
+alg.setCrossoverOperator(std::make_unique<LineRecombination>());
 ```
 
 ### 4.16 Intermediate Recombination
@@ -299,7 +308,8 @@ Each offspring gene is a random blend between the corresponding parent genes.
 **Use with:** Real-valued.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeIntermediateRecombination());
+#include "crossover/intermediate_recombination.h"
+alg.setCrossoverOperator(std::make_unique<IntermediateRecombination>());
 ```
 
 ### 4.17 Diploid Recombination
@@ -308,7 +318,8 @@ Maintains a dominant and recessive copy of each gene; the expressed value follow
 **Use with:** Binary.
 
 ```cpp
-alg.setCrossoverOperator(ga::makeDiploidRecombination());
+#include "crossover/diploid_recombination.h"
+alg.setCrossoverOperator(std::make_unique<DiploidRecombination>());
 ```
 
 ### 4.18 Subtree Crossover
@@ -317,7 +328,8 @@ Swaps randomly selected subtrees between two tree-based individuals.
 **Use with:** Genetic Programming (tree representation).
 
 ```cpp
-alg.setCrossoverOperator(ga::makeSubtreeCrossover());
+#include "crossover/subtree_crossover.h"
+alg.setCrossoverOperator(std::make_unique<SubtreeCrossover>());
 ```
 
 ---
@@ -326,13 +338,16 @@ alg.setCrossoverOperator(ga::makeSubtreeCrossover());
 
 Mutation randomly modifies one or more genes to maintain diversity and avoid premature convergence.
 
+> **Factory vs. direct construction:** The public `ga::` namespace only provides `makeGaussianMutation()` and `makeUniformMutation()` as convenience factories. All other mutation operators must be constructed directly by including their header.
+
 ### 5.1 Bit-Flip Mutation
 
 Flips each bit independently with probability `mutationRate`.  
 **Use with:** Binary.
 
 ```cpp
-alg.setMutationOperator(ga::makeBitFlipMutation());
+#include "mutation/bit_flip_mutation.h"
+alg.setMutationOperator(std::make_unique<BitFlipMutation>());
 ```
 
 ### 5.2 Gaussian Mutation
@@ -341,6 +356,7 @@ Adds a small Gaussian random noise to each gene. Keeps the search local.
 **Use with:** Real-valued.
 
 ```cpp
+// Public factory (include/ga/genetic_algorithm.hpp)
 alg.setMutationOperator(ga::makeGaussianMutation());
 ```
 
@@ -350,6 +366,7 @@ Replaces a gene with a uniformly random value within bounds.
 **Use with:** Real-valued.
 
 ```cpp
+// Public factory (include/ga/genetic_algorithm.hpp)
 alg.setMutationOperator(ga::makeUniformMutation());
 ```
 
@@ -359,7 +376,8 @@ Picks two random positions and swaps their values.
 **Use with:** Permutation.
 
 ```cpp
-alg.setMutationOperator(ga::makeSwapMutation());
+#include "mutation/swap_mutation.h"
+alg.setMutationOperator(std::make_unique<SwapMutation>());
 ```
 
 ### 5.5 Insert Mutation
@@ -368,7 +386,8 @@ Removes a gene from a random position and inserts it at another random position.
 **Use with:** Permutation.
 
 ```cpp
-alg.setMutationOperator(ga::makeInsertMutation());
+#include "mutation/insert_mutation.h"
+alg.setMutationOperator(std::make_unique<InsertMutation>());
 ```
 
 ### 5.6 Scramble Mutation
@@ -377,7 +396,8 @@ Selects a random subset of genes and shuffles them in place.
 **Use with:** Permutation.
 
 ```cpp
-alg.setMutationOperator(ga::makeScrambleMutation());
+#include "mutation/scramble_mutation.h"
+alg.setMutationOperator(std::make_unique<ScrambleMutation>());
 ```
 
 ### 5.7 Inversion Mutation
@@ -386,7 +406,8 @@ Reverses the order of genes between two random positions.
 **Use with:** Permutation.
 
 ```cpp
-alg.setMutationOperator(ga::makeInversionMutation());
+#include "mutation/inversion_mutation.h"
+alg.setMutationOperator(std::make_unique<InversionMutation>());
 ```
 
 ### 5.8 Creep Mutation
@@ -395,7 +416,8 @@ Adds or subtracts a small constant (creep) to an integer gene.
 **Use with:** Integer.
 
 ```cpp
-alg.setMutationOperator(ga::makeCreepMutation(/*step=*/1));
+#include "mutation/creep_mutation.h"
+alg.setMutationOperator(std::make_unique<CreepMutation>(/*step=*/1));
 ```
 
 ### 5.9 Random Resetting Mutation
@@ -404,7 +426,8 @@ Replaces a gene with a randomly chosen integer from a valid range.
 **Use with:** Integer.
 
 ```cpp
-alg.setMutationOperator(ga::makeRandomResettingMutation());
+#include "mutation/random_resetting_mutation.h"
+alg.setMutationOperator(std::make_unique<RandomResettingMutation>());
 ```
 
 ### 5.10 Self-Adaptive Mutation
@@ -413,7 +436,8 @@ Each individual carries its own mutation step-size, which also evolves alongside
 **Use with:** Real-valued (ES contexts).
 
 ```cpp
-alg.setMutationOperator(ga::makeSelfAdaptiveMutation());
+#include "mutation/self_adaptive_mutation.h"
+alg.setMutationOperator(std::make_unique<SelfAdaptiveMutation>());
 ```
 
 ### 5.11 List Mutation
@@ -422,7 +446,8 @@ General mutation for list-based genomes (insert, delete, or replace list element
 **Use with:** Variable-length representations.
 
 ```cpp
-alg.setMutationOperator(ga::makeListMutation());
+#include "mutation/list_mutation.h"
+alg.setMutationOperator(std::make_unique<ListMutation>());
 ```
 
 ---
@@ -431,6 +456,8 @@ alg.setMutationOperator(ga::makeListMutation());
 
 Selection decides which individuals survive or reproduce based on their fitness.
 
+> **Note:** `ga::GeneticAlgorithm` (the public C++ API) uses tournament selection internally and does not expose a `setSelectionOperator` hook. The selection classes in `selection-operator/` are designed for use in custom evolutionary loops (e.g., the interactive demo, NSGA-II, or your own main loop). In the examples below, `sel` refers to a selection operator you instantiate directly.
+
 ### 6.1 Tournament Selection
 
 Randomly samples *k* individuals and picks the best among them. A common default.  
@@ -438,7 +465,9 @@ Randomly samples *k* individuals and picks the best among them. A common default
 **Tip:** Higher tournament size (*k*) → stronger selection pressure.
 
 ```cpp
-alg.setSelectionOperator(ga::makeTournamentSelection(/*k=*/3));
+#include "selection-operator/tournament_selection.h"
+TournamentSelection sel(/*k=*/3);
+// int winner = sel.select(population, fitnesses);
 ```
 
 ### 6.2 Roulette Wheel Selection (Fitness-Proportionate)
@@ -448,7 +477,8 @@ Each individual's probability of selection is proportional to its fitness.
 **Caution:** Sensitive to fitness scaling; a dominant individual can take over quickly.
 
 ```cpp
-alg.setSelectionOperator(ga::makeRouletteWheelSelection());
+#include "selection-operator/roulette_wheel_selection.h"
+RouletteWheelSelection sel;
 ```
 
 ### 6.3 Rank Selection
@@ -457,7 +487,8 @@ Individuals are ranked by fitness; selection probability is proportional to rank
 **Use with:** All representations.
 
 ```cpp
-alg.setSelectionOperator(ga::makeRankSelection());
+#include "selection-operator/rank_selection.h"
+RankSelection sel;
 ```
 
 ### 6.4 Elitism Selection
@@ -466,7 +497,7 @@ The top fraction of individuals (controlled by `eliteRatio`) is copied unchanged
 **Use with:** All representations (built into the GA engine automatically).
 
 ```cpp
-// Configured via Config; no manual operator set needed
+// Configured via Config; no separate operator needed for ga::GeneticAlgorithm
 cfg.eliteRatio = 0.10;   // top 10% survive unchanged
 ```
 
@@ -476,7 +507,8 @@ Uses a single spin of a roulette wheel with *n* equally-spaced pointers, ensurin
 **Use with:** All representations.
 
 ```cpp
-alg.setSelectionOperator(ga::makeStochasticUniversalSampling());
+#include "selection-operator/stochastic_universal_sampling.h"
+StochasticUniversalSampling sel;
 ```
 
 ---
@@ -605,26 +637,26 @@ export PYTHONPATH=$PWD/build/python:$PYTHONPATH
 import ga
 
 def sphere(x):
-    return 1000.0 / (1.0 + sum(xi**2 for xi in x))
+    return 1000.0 / (1.0 + sum(v**2 for v in x))
 
 cfg = ga.Config()
-cfg.populationSize = 50
-cfg.generations    = 100
-cfg.dimension      = 10
-cfg.bounds         = ga.Bounds(-5.12, 5.12)
-cfg.seed           = 42
+cfg.population_size = 50
+cfg.generations     = 100
+cfg.dimension       = 10
+cfg.bounds          = ga.Bounds(-5.12, 5.12)
+cfg.seed            = 42
 
 alg = ga.GeneticAlgorithm(cfg)
 result = alg.run(sphere)
 
-print(f"Best fitness : {result.bestFitness}")
-print(f"Best solution: {result.bestGenes}")
+print(f"Best fitness : {result.best_fitness}")
+print(f"Best solution: {result.best_genes}")
 ```
 
 ### 10.3 Accessing Convergence History in Python
 
 ```python
-for gen, (best, avg) in enumerate(zip(result.bestHistory, result.avgHistory)):
+for gen, (best, avg) in enumerate(zip(result.best_history, result.avg_history)):
     print(f"Gen {gen}: best={best:.4f}  avg={avg:.4f}")
 ```
 
@@ -644,7 +676,11 @@ print(f"Reference points: {len(ref_points)}")
 import ga
 
 state = ga.CheckpointState()
-ga.checkpoint_save_json(state, "checkpoint.json")
+# Populate state fields before saving
+state.config = ga.Config()   # fill with your run config
+# state.result is populated from a completed run
+
+ga.checkpoint_save_json("checkpoint.json", state)   # path first, then state
 loaded = ga.checkpoint_load_json("checkpoint.json")
 ```
 
@@ -669,15 +705,15 @@ static double sphere_fitness(const double* genes, int length, void* user_data) {
 
 int main(void) {
     ga_config_c cfg = {
-        .populationSize = 60,
-        .generations    = 100,
-        .dimension      = 10,
-        .crossoverRate  = 0.8,
-        .mutationRate   = 0.1,
-        .lowerBound     = -5.12,
-        .upperBound     =  5.12,
-        .eliteRatio     = 0.05,
-        .seed           = 42
+        .population_size = 60,
+        .generations     = 100,
+        .dimension       = 10,
+        .crossover_rate  = 0.8,
+        .mutation_rate   = 0.1,
+        .lower_bound     = -5.12,
+        .upper_bound     =  5.12,
+        .elite_ratio     = 0.05,
+        .seed            = 42
     };
 
     // Validate config before use
@@ -780,7 +816,7 @@ ga::moea::Nsga2 nsga2(ncfg);
 #include <ga/moea/nsga3.hpp>
 
 // Generate structured reference points for 3 objectives with 4 divisions
-auto refPoints = ga::moea::generateReferencePoints(3, 4);
+auto refPoints = ga::moea::Nsga3::generateDasDennisReferencePoints(3, 4);
 ```
 
 ---
@@ -794,11 +830,13 @@ Evolution Strategies are gradient-free optimization algorithms that use self-ada
 ```cpp
 #include <ga/es/evolution_strategies.hpp>
 
-ga::es::EsConfig cfg;
-cfg.mu     = 15;    // parents
-cfg.lambda = 100;   // offspring per generation
-cfg.strategy = ga::es::Strategy::CommaSelection;   // (mu, lambda)
-// cfg.strategy = ga::es::Strategy::PlusSelection; // (mu + lambda)
+ga::es::EvolutionStrategyConfig cfg;
+cfg.mu           = 15;     // parents
+cfg.lambda       = 100;    // offspring per generation
+cfg.generations  = 100;
+cfg.dimension    = 10;
+cfg.sigma        = 0.3;
+cfg.plusStrategy = false;  // false = (mu,lambda); true = (mu+lambda)
 
 ga::es::EvolutionStrategy es(cfg);
 auto result = es.run(myFitness);
@@ -814,12 +852,12 @@ Covariance Matrix Adaptation ES — one of the most powerful gradient-free metho
 ```cpp
 #include <ga/es/cmaes.hpp>
 
-ga::es::CmaesConfig cfg;
-cfg.dimension   = 10;
+ga::es::CmaEsConfig cfg;
+cfg.dimension      = 10;
 cfg.populationSize = 20;
-cfg.sigma0      = 0.5;   // initial step size
+cfg.sigma          = 0.5;   // initial step size
 
-ga::es::Cmaes cmaes(cfg);
+ga::es::DiagonalCmaEs cmaes(cfg);
 auto result = cmaes.run(myFitness);
 ```
 
@@ -829,40 +867,25 @@ auto result = cmaes.run(myFitness);
 
 Evolve programs or mathematical expressions represented as trees.
 
-### 14.1 Tree Nodes
+> **API status:** The GP subsystem is experimental. The core building blocks are in `include/ga/gp/` — consult these headers directly for the most up-to-date interfaces, as they may change between versions.
 
-```cpp
-#include <ga/gp/node.hpp>
-#include <ga/gp/tree_builder.hpp>
+### 14.1 Tree Nodes and Builders
 
-// Define the function set (operators) and terminal set (variables, constants)
-ga::gp::FunctionSet funcs = {"+", "-", "*", "/"};
-ga::gp::TerminalSet terms = {"x", "y", "1.0"};
+Programs are represented as trees of `ga::gp::Node` primitives (functions/operators) and terminals (inputs/constants). The `TreeBuilder` class creates random trees from a configured primitive set.
 
-// Build a random initial tree of depth ≤ 4
-auto tree = ga::gp::TreeBuilder::grow(funcs, terms, /*maxDepth=*/4);
-```
+Relevant headers:
+- `ga/gp/node.hpp` — `Node` type and primitive definitions
+- `ga/gp/tree_builder.hpp` — instance-based builder that creates and grows trees
+- `ga/gp/type_system.hpp` — optional typed GP support for enforcing input/output type signatures
 
-### 14.2 Type System
+### 14.2 Automatically Defined Functions (ADF)
 
-```cpp
-#include <ga/gp/type_system.hpp>
+ADFs are reusable evolved sub-programs maintained alongside each individual. The ADF infrastructure is defined in:
+- `ga/gp/adf.hpp` — ADF pool and registration helpers
 
-// Enforce type safety in function/terminal signatures
-ga::gp::TypedNode node("sin", {ga::gp::Type::Real}, ga::gp::Type::Real);
-```
+### 14.3 Notes on API Stability
 
-### 14.3 Automatically Defined Functions (ADF)
-
-Reusable evolved sub-programs that individuals can call:
-
-```cpp
-#include <ga/gp/adf.hpp>
-
-ga::gp::AdfPool pool;
-pool.define("ADF0", mySubtree);   // register a reusable function
-// Individuals can now call ADF0 as if it were a primitive
-```
+Because the GP API is still evolving, always prefer the symbols shown in the current headers in `include/ga/gp/` over any external examples. Check the header documentation and any accompanying tests under `tests/` for concrete usage patterns.
 
 ---
 
@@ -872,11 +895,26 @@ Speed up fitness evaluation by running individuals in parallel.
 
 ### 15.1 Parallel Evaluator (Thread Pool)
 
+The `ga::evaluation::ParallelEvaluator` is a template class that evaluates a batch of inputs concurrently.
+
 ```cpp
 #include <ga/evaluation/parallel_evaluator.hpp>
+#include <vector>
 
-ga::ParallelEvaluator evaluator(/*threads=*/4);
-// The optimizer API uses this automatically via withThreads()
+auto fitness = [](const std::vector<double>& x) -> double {
+    double s = 0.0;
+    for (double v : x) s += v * v;
+    return 1000.0 / (1.0 + s);
+};
+
+// Template params: input type, output type, callable type
+ga::evaluation::ParallelEvaluator<
+    std::vector<double>,   // input (chromosome)
+    double,                // output (fitness)
+    decltype(fitness)      // callable
+> evaluator(fitness, /*threads=*/4);
+
+// The high-level Optimizer API hides this detail via withThreads()
 ```
 
 ### 15.2 Local Distributed Executor
@@ -915,19 +953,26 @@ Save and restore a run so you can continue after a crash or extend a completed r
 ```cpp
 #include <ga/checkpoint/checkpoint.hpp>
 
-// Save current run state
-ga::checkpoint::CheckpointManager mgr("run_checkpoint");
-mgr.save(state);             // binary format (fast)
-mgr.saveJson(state, "checkpoint.json");  // JSON format (human-readable)
+// Build a state from a completed run
+ga::checkpoint::CheckpointState state;
+state.config     = cfg;         // ga::Config used for the run
+state.result     = result;      // ga::Result returned by alg.run(...)
+state.generation = 100;         // current generation index
+// state.rngState can store the RNG stream (as a string) for full reproducibility
 
-// Restore state
-ga::checkpoint::CheckpointState loaded;
-mgr.load(loaded);
+// Save — CheckpointManager uses static methods; no object needed
+ga::checkpoint::CheckpointManager::saveBinary("run_checkpoint.bin", state);   // fast binary
+ga::checkpoint::CheckpointManager::saveJson("checkpoint.json", state);        // human-readable JSON
+
+// Restore
+ga::checkpoint::CheckpointState loaded =
+    ga::checkpoint::CheckpointManager::loadBinary("run_checkpoint.bin");
 // or
-mgr.loadJson(loaded, "checkpoint.json");
+ga::checkpoint::CheckpointState loadedJson =
+    ga::checkpoint::CheckpointManager::loadJson("checkpoint.json");
 ```
 
-The saved state includes: population genomes, fitness values, generation index, and RNG state.
+The saved state includes: `ga::Config`, `ga::Result` (best genes, fitness, history), generation index, and optional RNG state.
 
 ---
 
@@ -938,12 +983,14 @@ Automatically tune crossover and mutation rates based on population diversity an
 ```cpp
 #include <ga/adaptive/adaptive_policy.hpp>
 
-ga::adaptive::AdaptivePolicy policy;
-policy.setDiversityThreshold(0.1);   // increase mutation if diversity drops below this
-policy.setImprovementWindow(20);     // look at last 20 generations for improvement
+ga::adaptive::AdaptiveRateController controller;
+ga::adaptive::AdaptiveRates rates{/*mutationRate=*/0.1, /*crossoverRate=*/0.8};
 
-// The policy is queried each generation to update rates
-double mutRate = policy.mutationRate(currentDiversity, recentImprovement);
+// Call once per generation, passing current diversity and improvement since last generation
+rates = controller.update(rates, /*diversity=*/currentDiversity, /*bestImprovement=*/recentImprovement);
+
+cfg.mutationRate  = rates.mutationRate;
+cfg.crossoverRate = rates.crossoverRate;
 ```
 
 **How it works:**
@@ -961,10 +1008,20 @@ Combine the global search of a GA with local refinement for faster convergence.
 #include <ga/hybrid/hybrid_optimizer.hpp>
 
 ga::hybrid::HybridOptimizer hybrid(gaConfig);
-hybrid.setLocalSearchSteps(50);    // run 50 steps of local search on top-k individuals
-hybrid.setLocalSearchK(5);         // refine the top 5 individuals per generation
 
-auto result = hybrid.run(myFitness);
+// Define a local search function that refines a single solution in-place
+auto localSearch = [](std::vector<double>& genes) {
+    // Example: a few steps of gradient-free hill climbing
+    for (int step = 0; step < 20; ++step) {
+        std::vector<double> candidate = genes;
+        // ... perturb candidate and accept if better ...
+    }
+};
+
+// run(fitness, localSearch, localSearchRestarts)
+// After the GA finishes, localSearch is applied to the best solution
+// localSearchRestarts times (accepting improvements)
+auto result = hybrid.run(myFitness, localSearch, /*localSearchRestarts=*/5);
 ```
 
 **Use case:** When your GA stalls near a good solution, local search can polish it without extra generations.
@@ -973,43 +1030,43 @@ auto result = hybrid.run(myFitness);
 
 ## 19. Constraint Handling
 
-Many real problems have feasibility requirements. The framework provides three approaches:
-
-### 19.1 Hard Constraints
-
-Reject infeasible solutions outright:
+Many real problems have feasibility requirements. The framework provides a unified `ConstraintSet` with three types of constraints.
 
 ```cpp
 #include <ga/constraints/constraints.hpp>
 
-ga::constraints::HardConstraint c;
-c.addConstraint([](const std::vector<double>& x) {
+ga::constraints::ConstraintSet cs;
+
+// Hard constraints — return true if satisfied, false otherwise
+cs.hard.push_back([](const std::vector<double>& x) {
     return x[0] + x[1] <= 5.0;   // must be satisfied
 });
-```
 
-### 19.2 Soft Constraints (Penalty)
-
-Penalize infeasible solutions by subtracting from fitness:
-
-```cpp
-ga::constraints::PenaltyConstraint p;
-p.setPenaltyFactor(100.0);   // large factor → stronger pressure toward feasibility
-p.addViolation([](const std::vector<double>& x) {
+// Soft constraints — return a non-negative penalty amount (0 = no violation)
+cs.soft.push_back([](const std::vector<double>& x) {
     return std::max(0.0, x[0] + x[1] - 5.0);   // excess amount
 });
-```
 
-### 19.3 Repair Operator
-
-Automatically fix infeasible individuals before evaluation:
-
-```cpp
-ga::constraints::RepairOperator repair;
-repair.setRepairFn([](std::vector<double>& x) {
-    // Clip values to feasible region
+// Repair functions — fix infeasible individuals in-place
+cs.repairs.push_back([](std::vector<double>& x) {
     x[0] = std::min(x[0], 5.0 - x[1]);
 });
+```
+
+Use the helper functions in your fitness wrapper:
+
+```cpp
+double constrainedFitness(const std::vector<double>& x) {
+    // Apply repairs first
+    std::vector<double> repaired = x;
+    ga::constraints::applyRepairs(repaired, cs);
+
+    double base = myFitness(repaired);
+
+    // Returns base fitness reduced by soft penalties; subtracts a large
+    // infeasiblePenalty if any hard constraint is violated
+    return ga::constraints::penalizedFitness(base, repaired, cs, /*infeasiblePenalty=*/1e6);
+}
 ```
 
 ---
@@ -1022,13 +1079,20 @@ Log all run metadata for reproducibility and comparison.
 #include <ga/tracking/experiment_tracker.hpp>
 
 ga::tracking::ExperimentTracker tracker("my_experiment");
-tracker.logConfig(cfg);
-tracker.logGeneration(gen, bestFitness, avgFitness);
-tracker.logBestSolution(result.bestGenes, result.bestFitness);
-tracker.save("experiment_results.json");
+
+// Write config to a text file (key=value format)
+tracker.writeConfig(cfg, "experiment_config.txt");
+
+// After the run, write per-generation history and best solution
+ga::Result result = alg.run(myFitness);
+tracker.writeHistoryCSV(result, "experiment_history.csv");
+tracker.writeBestSolutionCSV(result, "experiment_best.csv");
 ```
 
-The saved log includes: config, seed, operator choices, per-generation metrics, and the best solution found.
+Output files:
+- `experiment_config.txt` — run parameters (population size, rates, seed, etc.)
+- `experiment_history.csv` — columns: `generation,best,average`
+- `experiment_best.csv` — columns: `index,value` (one row per gene)
 
 ---
 
@@ -1039,14 +1103,16 @@ Export fitness and diversity data for plotting in Python, R, or any spreadsheet 
 ```cpp
 #include <ga/visualization/export.hpp>
 
-// Export fitness curve
-ga::visualization::exportFitnessCsv(result, "fitness_curve.csv");
+ga::Result result = alg.run(myFitness);
 
-// Export Pareto front (for multi-objective)
-ga::visualization::exportParetoCsv(paretoObjectives, "pareto_front.csv");
+// Export fitness curve: columns generation,best,avg
+ga::visualization::exportFitnessCurveCSV(result.bestHistory, result.avgHistory, "fitness_curve.csv");
 
-// Export diversity trend
-ga::visualization::exportDiversityCsv(diversityHistory, "diversity.csv");
+// Export Pareto front (for multi-objective): one row per solution
+ga::visualization::exportParetoFrontCSV(paretoObjectives, "pareto_front.csv");
+
+// Export diversity trend: columns generation,diversity
+ga::visualization::exportDiversityCSV(diversityHistory, "diversity.csv");
 ```
 
 Generated CSV files have a standard schema you can load in Python:
@@ -1056,8 +1122,8 @@ import pandas as pd
 import matplotlib.pyplot as plt
 
 df = pd.read_csv("fitness_curve.csv")
-plt.plot(df["generation"], df["best_fitness"], label="Best")
-plt.plot(df["generation"], df["avg_fitness"], label="Average")
+plt.plot(df["generation"], df["best"], label="Best")
+plt.plot(df["generation"], df["avg"], label="Average")
 plt.xlabel("Generation")
 plt.ylabel("Fitness")
 plt.legend()
@@ -1070,20 +1136,32 @@ plt.savefig("fitness_curve.png")
 
 Register custom operators at runtime using the plugin registry.
 
+`ga::plugin::Registry<Base>` is a template class — instantiate one per operator type:
+
 ```cpp
 #include <ga/plugin/registry.hpp>
 
+// The registry is an ordinary object (no singleton); own it wherever it lives
+ga::plugin::Registry<CrossoverOperator> crossoverRegistry;
+
 // Register a custom crossover by name
-ga::plugin::Registry::instance().registerCrossover(
+crossoverRegistry.registerFactory(
     "my_crossover",
     []() { return std::make_unique<MyCrossover>(); }
 );
 
-// Look up and use by name
-auto op = ga::plugin::Registry::instance().createCrossover("my_crossover");
-```
+// Check if registered
+if (crossoverRegistry.has("my_crossover")) {
+    // Create an instance by name
+    auto op = crossoverRegistry.create("my_crossover");
+    alg.setCrossoverOperator(std::move(op));
+}
 
-This allows third-party operators without modifying the core library.
+// List all registered names
+for (const auto& name : crossoverRegistry.names()) {
+    std::cout << name << "\n";
+}
+```
 
 ---
 
