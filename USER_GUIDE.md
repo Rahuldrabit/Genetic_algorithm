@@ -31,7 +31,7 @@ For features not yet exposed in the Python bindings, an explicit note is include
 | 16 | [Adaptive Operators](#16-adaptive-operators) | ✅ | ✅ |
 | 17 | [Hybrid Optimization](#17-hybrid-optimization) | ✅ | ✅ |
 | 18 | [Constraint Handling](#18-constraint-handling) | ✅ | ✅ |
-| 19 | [Parallel and Distributed Evaluation](#19-parallel-and-distributed-evaluation) | ✅ | ❌ not exposed |
+| 19 | [Parallel and Distributed Evaluation](#19-parallel-and-distributed-evaluation) | ✅ | ⚠️ partial (`Optimizer.with_threads`) |
 | 20 | [Co-Evolution](#20-co-evolution) | ✅ | ✅ |
 | 21 | [Checkpointing](#21-checkpointing) | ✅ | ✅ |
 | 22 | [Experiment Tracking](#22-experiment-tracking) | ✅ | ✅ |
@@ -1513,11 +1513,30 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> Parallel and distributed evaluators are implemented in
-> `include/ga/evaluation/` (C++ only).
-> As a workaround, Python's `concurrent.futures` can parallelize fitness calls
-> externally and pass results to a Python-level custom fitness function.
+The low-level evaluators in `include/ga/evaluation/` are C++-only, but Python
+does expose thread-parallel evaluation through `ga.Optimizer.with_threads(...)`.
+
+```python
+import ga
+
+cfg = ga.Config()
+cfg.population_size = 120
+cfg.generations = 200
+cfg.dimension = 20
+cfg.bounds = ga.Bounds(-5.12, 5.12)
+
+result = (ga.Optimizer()
+    .with_config(cfg)
+    .with_threads(4)   # run objective evaluations in parallel
+    .with_seed(42)
+    .optimize(lambda x: 1000.0 / (1.0 + sum(xi * xi for xi in x))))
+
+print("Best fitness:", result.best_fitness)
+```
+
+If you need custom process-level orchestration from Python, use
+`concurrent.futures` around your own workload and keep GA optimization in the
+`ga` module.
 
 ---
 
@@ -2048,7 +2067,7 @@ pip install pybind11
 # 2. Configure and build
 mkdir -p build && cd build
 cmake ..
-cmake --build . --target ga-python-bindings -j$(nproc)
+cmake --build . --target ga_python_module -j$(nproc)
 
 # 3. Add the build directory to PYTHONPATH
 export PYTHONPATH="$(pwd)/python:$PYTHONPATH"
