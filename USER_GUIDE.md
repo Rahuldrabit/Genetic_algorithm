@@ -31,13 +31,13 @@ For features not yet exposed in the Python bindings, an explicit note is include
 | 16 | [Adaptive Operators](#16-adaptive-operators) | ✅ | ✅ |
 | 17 | [Hybrid Optimization](#17-hybrid-optimization) | ✅ | ✅ |
 | 18 | [Constraint Handling](#18-constraint-handling) | ✅ | ✅ |
-| 19 | [Parallel and Distributed Evaluation](#19-parallel-and-distributed-evaluation) | ✅ | ⚠️ partial (`Optimizer.with_threads`) |
+| 19 | [Parallel and Distributed Evaluation](#19-parallel-and-distributed-evaluation) | ✅ | ✅ (`ParallelEvaluator`, `LocalDistributedExecutor`, `Optimizer.with_threads`) |
 | 20 | [Co-Evolution](#20-co-evolution) | ✅ | ✅ |
 | 21 | [Checkpointing](#21-checkpointing) | ✅ | ✅ |
 | 22 | [Experiment Tracking](#22-experiment-tracking) | ✅ | ✅ |
 | 23 | [Visualization and CSV Export](#23-visualization-and-csv-export) | ✅ | ✅ |
 | 24 | [Plugin Architecture](#24-plugin-architecture) | ✅ | ❌ not exposed |
-| 25 | [Benchmark Suite](#25-benchmark-suite) | ✅ | ❌ not exposed |
+| 25 | [Benchmark Suite](#25-benchmark-suite) | ✅ | ✅ (`BenchmarkConfig`, `GABenchmark`) |
 | 26 | [C API](#26-c-api) | ✅ | N/A (C only) |
 | 27 | [Reproducibility Controls](#27-reproducibility-controls) | ✅ | ✅ |
 
@@ -1539,30 +1539,40 @@ int main() {
 
 ### Python
 
-The low-level evaluators in `include/ga/evaluation/` are C++-only, but Python
-does expose thread-parallel evaluation through `ga.Optimizer.with_threads(...)`.
+Python exposes thread-parallel evaluators directly:
+
+- `ga.ParallelEvaluator(fitness, threads=...)`
+- `ga.LocalDistributedExecutor(evaluator, workers=...)`
+- plus optimizer-level threading via `ga.Optimizer.with_threads(...)`
 
 ```python
 import ga
+
+def sphere(x):
+    return 1000.0 / (1.0 + sum(xi * xi for xi in x))
+
+batch = [[0.1, 0.2], [0.3, 0.4], [0.0, 0.0]]
+
+pe = ga.ParallelEvaluator(sphere, threads=4)
+print("ParallelEvaluator:", pe.evaluate(batch))
+
+lde = ga.LocalDistributedExecutor(sphere, workers=4)
+print("LocalDistributedExecutor:", lde.execute(batch))
 
 cfg = ga.Config()
 cfg.population_size = 120
 cfg.generations = 200
 cfg.dimension = 20
 cfg.bounds = ga.Bounds(-5.12, 5.12)
-
 result = (ga.Optimizer()
     .with_config(cfg)
-    .with_threads(4)   # run objective evaluations in parallel
+    .with_threads(4)
     .with_seed(42)
-    .optimize(lambda x: 1000.0 / (1.0 + sum(xi * xi for xi in x))))
-
+    .optimize(sphere))
 print("Best fitness:", result.best_fitness)
 ```
 
-If you need custom process-level orchestration from Python, use
-`concurrent.futures` around your own workload and keep GA optimization in the
-`ga` module.
+> `ProcessDistributedExecutor` is still C++-only (POSIX/fork backend).
 
 ---
 
@@ -1944,30 +1954,26 @@ cmake --build build
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> The benchmark suite is implemented in `benchmark/` and exposed via the
-> `ga-benchmark` executable (C++ only).
->
-> You can replicate benchmark-style measurements in Python using the
-> `ga.GeneticAlgorithm` directly:
->
-> ```python
-> import ga, time
->
-> def sphere(x):
->     return 1000.0 / (1.0 + sum(xi**2 for xi in x))
->
-> for dim in [5, 10, 20]:
->     cfg = ga.Config()
->     cfg.population_size = 60
->     cfg.generations     = 100
->     cfg.dimension       = dim
->     cfg.bounds          = ga.Bounds(-5.12, 5.12)
->     t0 = time.perf_counter()
->     r  = ga.GeneticAlgorithm(cfg).run(sphere)
->     elapsed = time.perf_counter() - t0
->     print(f"dim={dim:2d}  best={r.best_fitness:.4f}  time={elapsed*1000:.1f}ms")
-> ```
+The benchmark suite is exposed in Python through `ga.BenchmarkConfig` and
+`ga.GABenchmark`:
+
+```python
+import ga
+
+cfg = ga.BenchmarkConfig()
+cfg.warmup_iterations = 1
+cfg.benchmark_iterations = 3
+cfg.verbose = False
+
+b = ga.GABenchmark(cfg)
+b.run_operator_benchmarks()
+print("Operator rows:", len(b.operator_results()))
+
+b.run_function_benchmarks()
+print("Function rows:", len(b.function_results()))
+
+b.export_to_csv("benchmark_results.csv")
+```
 
 ---
 
@@ -2128,12 +2134,21 @@ python3 python/example.py
 | `ga.make_two_point_crossover` | Factory: two-point crossover |
 | `ga.make_gaussian_mutation` | Factory: Gaussian mutation |
 | `ga.make_uniform_mutation` | Factory: Uniform mutation |
+| **Evaluation** | |
+| `ga.ParallelEvaluator` | Threaded batch evaluator over candidate vectors |
+| `ga.LocalDistributedExecutor` | Threaded distributed executor over candidate batches |
 | **Selection Helpers** | |
 | `ga.selection_tournament_indices` | Tournament selection over fitness list |
 | `ga.selection_roulette_indices` | Roulette-wheel selection over fitness list |
 | `ga.selection_rank_indices` | Rank-based selection over fitness list |
 | `ga.selection_sus_indices` | Stochastic universal sampling over fitness list |
 | `ga.selection_elitism_indices` | Elitism/top-k selection over fitness list |
+| **Benchmark** | |
+| `ga.BenchmarkConfig` | Configure benchmark warmup/iterations/output |
+| `ga.BenchmarkResult` | Scalability benchmark summary row |
+| `ga.OperatorBenchmark` | Operator benchmark row |
+| `ga.FunctionBenchmark` | Function optimization benchmark row |
+| `ga.GABenchmark` | Run benchmark suite and export reports/CSV |
 | **Representations** | |
 | `ga.VectorGenome` | Real-valued genome (`double`) |
 | `ga.BitsetGenome` | Binary/bitset genome |

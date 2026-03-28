@@ -67,6 +67,10 @@ public:
     void generateReport();
     void exportToCSV(const std::string& filename);
 
+    const std::vector<OperatorBenchmark>& operatorResults() const { return operatorResults_; }
+    const std::vector<FunctionBenchmark>& functionResults() const { return functionResults_; }
+    const std::vector<BenchmarkResult>& scalabilityResults() const { return scalabilityResults_; }
+
 private:
     BenchmarkConfig config_;
     std::vector<OperatorBenchmark> operatorResults_;

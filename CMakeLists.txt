@@ -168,6 +168,7 @@ endif()
 if(pybind11_FOUND)
     # Build the 'ga' Python extension module
     pybind11_add_module(ga_python_module python/ga_bindings.cpp)
+    target_sources(ga_python_module PRIVATE benchmark/ga_benchmark.cc)
     target_link_libraries(ga_python_module PRIVATE genetic_algorithm)
     target_include_directories(ga_python_module PRIVATE ${CMAKE_SOURCE_DIR}/include)
     set_target_properties(ga_python_module PROPERTIES
