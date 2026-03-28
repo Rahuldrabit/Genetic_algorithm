@@ -132,6 +132,12 @@ set_target_properties(advanced-features-sanity PROPERTIES
     RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
 )
 
+add_executable(representations-core-sanity tests/representations_core_sanity.cc)
+target_link_libraries(representations-core-sanity PRIVATE genetic_algorithm)
+set_target_properties(representations-core-sanity PROPERTIES
+    RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+)
+
 # Benchmark suite
 add_executable(ga-benchmark
     benchmark/benchmark_main.cc
