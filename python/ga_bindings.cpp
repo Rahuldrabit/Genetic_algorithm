@@ -815,10 +815,10 @@ PYBIND11_MODULE(ga, m) {
 
     // ------------------------------------------------------- Selection helper APIs
     m.def("selection_tournament_indices",
-          [](const std::vector<double>& fitness, std::size_t tournamentSize) {
+          [](const std::vector<double>& fitness, std::size_t tournament_size) {
               auto population = fitnessToSelectionPopulation(fitness);
               return TournamentSelection::selectIndices(
-                  population, checkedCountToUInt(tournamentSize, "tournament_size"));
+                  population, checkedCountToUInt(tournament_size, "tournament_size"));
           },
           py::arg("fitness"),
           py::arg("tournament_size") = 3u,
@@ -853,10 +853,10 @@ PYBIND11_MODULE(ga, m) {
           "Stochastic universal sampling helper: returns selected indices");
 
     m.def("selection_elitism_indices",
-          [](const std::vector<double>& fitness, std::size_t eliteCount) {
+          [](const std::vector<double>& fitness, std::size_t elite_count) {
               auto population = fitnessToSelectionPopulation(fitness);
               return ElitismSelection::selectIndices(
-                  population, checkedCountToUInt(eliteCount, "elite_count"));
+                  population, checkedCountToUInt(elite_count, "elite_count"));
           },
           py::arg("fitness"),
           py::arg("elite_count"),
