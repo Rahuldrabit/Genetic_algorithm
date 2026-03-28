@@ -1,6 +1,6 @@
 # Genetic Algorithm Library - Complete Technical Checklist
 
-This document is a practical, implementation-oriented checklist for evolving this repository to DEAP-level capability and beyond, while staying clean, reusable, and language-export friendly.
+This document is a practical, implementation-oriented checklist for evolving this repository , while staying clean, reusable, and language-export friendly.
 
 ## 1) Status Snapshot
 
@@ -407,16 +407,8 @@ public:
    - typed trees, subtree mutation, then ADF
 5. Runtime systems:
    - parallel evaluators, checkpointing, tracking
-6. Beyond-DEAP differentiators:
+6. 
    - adaptive operators, hybrid local search, ergonomic optimizer API
 7. Language exports:
    - C wrapper and expanded Python bindings
 
-## 7) Definition of Done for "DEAP-Level + Beyond"
-
-- DEAP parity:
-  - multiple encodings, GP, ES, MOEA, co-evolution, parallel execution, checkpoints
-- Beyond DEAP:
-  - adaptive operators, hybrid optimization, built-in experiment tracking, first-class visualization export, one-call high-level API
-- Engineering quality:
-  - deterministic mode, benchmark regressions, unit/integration tests, documented extension points
