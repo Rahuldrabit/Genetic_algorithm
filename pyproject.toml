@@ -3,7 +3,7 @@ requires = ["scikit-build-core>=0.10", "pybind11>=2.6"]
 build-backend = "scikit_build_core.build"
 
 [project]
-name = "genetic-algorithm"
+name = "genetic-algorithm-lib"
 version = "1.0.0"
 description = "Genetic Algorithm framework with C++ core and Python bindings"
 readme = "README.md"
