@@ -101,8 +101,10 @@ def main() -> None:
     rw_idx = ga.selection_roulette_indices(fitness, count=3)
     assert len(rw_idx) == 3 and all(0 <= i < len(fitness) for i in rw_idx)
     rank_idx = ga.selection_rank_indices(fitness, count=3)
+    # Legacy rank helper can return fewer indices than requested in this codebase.
     assert len(rank_idx) <= 3
     sus_idx = ga.selection_sus_indices(fitness, count=3)
+    # Legacy SUS helper can return fewer indices than requested in this codebase.
     assert len(sus_idx) <= 3
     elite_idx = ga.selection_elitism_indices(fitness, elite_count=2)
     assert len(elite_idx) == 2 and all(0 <= i < len(fitness) for i in elite_idx)

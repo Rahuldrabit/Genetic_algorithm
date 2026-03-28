@@ -16,6 +16,7 @@
 #include <random>
 #include <stdexcept>
 #include <thread>
+#include <limits>
 
 #include "ga/config.hpp"
 #include "ga/genetic_algorithm.hpp"
@@ -110,6 +111,13 @@ static std::vector<::Individual> fitnessToSelectionPopulation(const std::vector<
         population.emplace_back(f);
     }
     return population;
+}
+
+static unsigned int checkedCountToUInt(std::size_t value, const char* name) {
+    if (value > static_cast<std::size_t>(std::numeric_limits<unsigned int>::max())) {
+        throw std::out_of_range(std::string(name) + " exceeds unsigned int range");
+    }
+    return static_cast<unsigned int>(value);
 }
 
 PYBIND11_MODULE(ga, m) {
@@ -810,7 +818,7 @@ PYBIND11_MODULE(ga, m) {
           [](const std::vector<double>& fitness, std::size_t tournamentSize) {
               auto population = fitnessToSelectionPopulation(fitness);
               return TournamentSelection::selectIndices(
-                  population, static_cast<unsigned int>(tournamentSize));
+                  population, checkedCountToUInt(tournamentSize, "tournament_size"));
           },
           py::arg("fitness"),
           py::arg("tournament_size") = 3u,
@@ -820,7 +828,7 @@ PYBIND11_MODULE(ga, m) {
           [](const std::vector<double>& fitness, std::size_t count) {
               auto population = fitnessToSelectionPopulation(fitness);
               return RouletteWheelSelection::selectIndices(
-                  population, static_cast<unsigned int>(count));
+                  population, checkedCountToUInt(count, "count"));
           },
           py::arg("fitness"),
           py::arg("count"),
@@ -829,7 +837,7 @@ PYBIND11_MODULE(ga, m) {
     m.def("selection_rank_indices",
           [](const std::vector<double>& fitness, std::size_t count) {
               auto population = fitnessToSelectionPopulation(fitness);
-              return RankSelectionLegacy(population, static_cast<unsigned int>(count));
+              return RankSelectionLegacy(population, checkedCountToUInt(count, "count"));
           },
           py::arg("fitness"),
           py::arg("count"),
@@ -838,7 +846,7 @@ PYBIND11_MODULE(ga, m) {
     m.def("selection_sus_indices",
           [](const std::vector<double>& fitness, std::size_t count) {
               auto population = fitnessToSelectionPopulation(fitness);
-              return StochasticUniversalSamplingLegacy(population, static_cast<unsigned int>(count));
+              return StochasticUniversalSamplingLegacy(population, checkedCountToUInt(count, "count"));
           },
           py::arg("fitness"),
           py::arg("count"),
@@ -848,7 +856,7 @@ PYBIND11_MODULE(ga, m) {
           [](const std::vector<double>& fitness, std::size_t eliteCount) {
               auto population = fitnessToSelectionPopulation(fitness);
               return ElitismSelection::selectIndices(
-                  population, static_cast<unsigned int>(eliteCount));
+                  population, checkedCountToUInt(eliteCount, "elite_count"));
           },
           py::arg("fitness"),
           py::arg("elite_count"),
