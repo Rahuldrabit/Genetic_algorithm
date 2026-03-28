@@ -24,4 +24,5 @@ Repository = "https://github.com/Rahuldrabit/Genetic_algorithm"
 Issues = "https://github.com/Rahuldrabit/Genetic_algorithm/issues"
 
 [tool.scikit-build]
+# This project ships a compiled extension module (`ga`) and no pure-Python package tree.
 wheel.packages = []
