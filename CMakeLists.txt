@@ -174,6 +174,17 @@ if(pybind11_FOUND)
         OUTPUT_NAME "ga"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
     )
+    if(SKBUILD)
+        install(TARGETS ga_python_module
+            LIBRARY DESTINATION .
+            RUNTIME DESTINATION .
+        )
+    else()
+        install(TARGETS ga_python_module
+            LIBRARY DESTINATION lib/python
+            RUNTIME DESTINATION lib/python
+        )
+    endif()
     message(STATUS "Python bindings: ENABLED (pybind11 ${pybind11_VERSION})")
 else()
     message(STATUS "Python bindings: DISABLED (pybind11 not found — install with: pip install pybind11)")

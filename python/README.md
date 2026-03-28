@@ -14,6 +14,26 @@ cmake --build build --target ga_python_module
 
 The module is produced under `build/python`.
 
+## Install with pip
+
+From the repository root:
+
+```bash
+python3 -m pip install .
+```
+
+Or for editable/development install:
+
+```bash
+python3 -m pip install -e .
+```
+
+Then import directly:
+
+```python
+import ga
+```
+
 ## Example
 
 Run the bundled example:
