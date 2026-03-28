@@ -15,33 +15,33 @@ For features not yet exposed in the Python bindings, an explicit note is include
 |---|---------|-----|--------|
 | 1 | [Quick Start](#1-quick-start) | ✅ | ✅ |
 | 2 | [Configuration (`Config`, `Bounds`)](#2-configuration) | ✅ | ✅ |
-| 3 | [Chromosome Representations](#3-chromosome-representations) | ✅ | ⚠️ real-valued only |
-| 4 | [Crossover Operators](#4-crossover-operators) | ✅ | ⚠️ 2 operators exposed |
-| 5 | [Mutation Operators](#5-mutation-operators) | ✅ | ⚠️ 2 operators exposed |
+| 3 | [Chromosome Representations](#3-chromosome-representations) | ✅ | ✅ (all genome types) |
+| 4 | [Crossover Operators](#4-crossover-operators) | ✅ | ⚠️ 2 factory operators exposed |
+| 5 | [Mutation Operators](#5-mutation-operators) | ✅ | ⚠️ 2 factory operators exposed |
 | 6 | [Selection Operators](#6-selection-operators) | ✅ | ❌ not exposed |
 | 7 | [Core GA Run and Results](#7-core-ga-run-and-results) | ✅ | ✅ |
-| 8 | [High-Level Optimizer API](#8-high-level-optimizer-api) | ✅ | ❌ not exposed |
+| 8 | [High-Level Optimizer API](#8-high-level-optimizer-api) | ✅ | ✅ |
 | 9 | [Multi-Objective: NSGA-II](#9-multi-objective-nsga-ii) | ✅ | ✅ (objective-space utils) |
 | 10 | [Multi-Objective: NSGA-III](#10-multi-objective-nsga-iii) | ✅ | ✅ |
-| 11 | [Multi-Objective: SPEA2](#11-multi-objective-spea2) | ✅ | ❌ not exposed |
-| 12 | [Multi-Objective: MO-CMA-ES](#12-multi-objective-mo-cma-es) | ✅ | ❌ not exposed |
-| 13 | [Evolution Strategies (ES)](#13-evolution-strategies-es) | ✅ | ❌ not exposed |
-| 14 | [CMA-ES](#14-cma-es) | ✅ | ❌ not exposed |
-| 15 | [Genetic Programming (GP)](#15-genetic-programming-gp) | ✅ | ❌ not exposed |
-| 16 | [Adaptive Operators](#16-adaptive-operators) | ✅ | ❌ not exposed |
-| 17 | [Hybrid Optimization](#17-hybrid-optimization) | ✅ | ❌ not exposed |
-| 18 | [Constraint Handling](#18-constraint-handling) | ✅ | ❌ not exposed |
+| 11 | [Multi-Objective: SPEA2](#11-multi-objective-spea2) | ✅ | ✅ (objective-space utils) |
+| 12 | [Multi-Objective: MO-CMA-ES](#12-multi-objective-mo-cma-es) | ✅ | ✅ |
+| 13 | [Evolution Strategies (ES)](#13-evolution-strategies-es) | ✅ | ✅ |
+| 14 | [CMA-ES](#14-cma-es) | ✅ | ✅ |
+| 15 | [Genetic Programming (GP)](#15-genetic-programming-gp) | ✅ | ✅ |
+| 16 | [Adaptive Operators](#16-adaptive-operators) | ✅ | ✅ |
+| 17 | [Hybrid Optimization](#17-hybrid-optimization) | ✅ | ✅ |
+| 18 | [Constraint Handling](#18-constraint-handling) | ✅ | ✅ |
 | 19 | [Parallel and Distributed Evaluation](#19-parallel-and-distributed-evaluation) | ✅ | ❌ not exposed |
-| 20 | [Co-Evolution](#20-co-evolution) | ✅ | ❌ not exposed |
+| 20 | [Co-Evolution](#20-co-evolution) | ✅ | ✅ |
 | 21 | [Checkpointing](#21-checkpointing) | ✅ | ✅ |
-| 22 | [Experiment Tracking](#22-experiment-tracking) | ✅ | ❌ not exposed |
-| 23 | [Visualization and CSV Export](#23-visualization-and-csv-export) | ✅ | ❌ not exposed |
+| 22 | [Experiment Tracking](#22-experiment-tracking) | ✅ | ✅ |
+| 23 | [Visualization and CSV Export](#23-visualization-and-csv-export) | ✅ | ✅ |
 | 24 | [Plugin Architecture](#24-plugin-architecture) | ✅ | ❌ not exposed |
 | 25 | [Benchmark Suite](#25-benchmark-suite) | ✅ | ❌ not exposed |
 | 26 | [C API](#26-c-api) | ✅ | N/A (C only) |
 | 27 | [Reproducibility Controls](#27-reproducibility-controls) | ✅ | ✅ |
 
-**Legend:** ✅ fully available · ⚠️ partially available · ❌ not yet exposed in Python bindings
+**Legend:** ✅ fully available · ⚠️ partially available · ❌ not exposed in Python bindings
 
 ---
 
@@ -155,7 +155,7 @@ print(repr(bounds))  # Bounds(lower=-1.000000, upper=1.000000)
 ---
 ## 3. Chromosome Representations
 
-The library provides six genome types for different problem domains.
+The library provides eight genome types for different problem domains.
 
 ### 3.1 Real-Valued (VectorGenome\<double\>)
 
@@ -173,12 +173,18 @@ std::cout << genome.encodingName() << "\n"; // "vector<double>"
 
 #### Python
 
-The default `ga.GeneticAlgorithm` operates on real-valued gene vectors.
-No explicit genome construction is needed — the engine creates them internally.
+`ga.VectorGenome` (real-valued) is directly constructible, and the
+`ga.GeneticAlgorithm` operates on real-valued gene vectors internally.
 
 ```python
 import ga
 
+# Direct construction
+g = ga.VectorGenome([0.1, -0.5, 0.3])
+print(g.genes)          # [0.1, -0.5, 0.3]
+print(g.encoding_name())  # "vector<double>"
+
+# Core GA uses real-valued genes transparently
 cfg = ga.Config()
 cfg.dimension = 5
 cfg.bounds    = ga.Bounds(0.0, 1.0)
@@ -200,11 +206,11 @@ std::cout << genome.encodingName() << "\n"; // "vector<int>"
 
 #### Python
 
-> **Not available in Python bindings yet.**
-> The Python `ga.GeneticAlgorithm` class operates exclusively on real-valued
-> (`double`) gene vectors. Integer-specific crossover/mutation is not currently
-> exposed. As a workaround, round real-valued genes to integers in your fitness
-> function:
+> **Not available in Python bindings.**
+> `VectorGenome<int>` (integer variant) is not separately exposed to Python.
+> The Python `ga.GeneticAlgorithm` operates on real-valued (`double`) gene
+> vectors. As a workaround, round real-valued genes to integers inside your
+> fitness function:
 >
 > ```python
 > def int_fitness(x):
@@ -235,8 +241,23 @@ echo -e "binary\nuniform\nbit_flip\ntournament" | ./build/bin/simple_ga_test
 
 #### Python
 
-> **Not available in Python bindings yet.**
-> The Python engine is real-valued. Use integer rounding as a workaround (see §3.2).
+`ga.BitsetGenome` is fully exposed:
+
+```python
+import ga
+
+# Create from a list of bools
+b = ga.BitsetGenome([True, False, True, True, False])
+print(b.size())            # 5
+print(b.popcount())        # 3
+
+# Create zero-initialised
+b2 = ga.BitsetGenome(8)    # 8 bits, all False
+b2.bits[0] = True
+print(b.hamming_distance(b2))
+
+print(b.encoding_name())   # "bitset"
+```
 
 ### 3.4 Permutation (PermutationGenome)
 
@@ -255,10 +276,23 @@ echo -e "permutation\norder_crossover\nswap\ntournament" | ./build/bin/simple_ga
 
 #### Python
 
-> **Not available in Python bindings yet.**
-> Permutation-specific operators (Order Crossover, PMX, Cycle Crossover,
-> Scramble Mutation, etc.) are not exposed. There is no direct Python equivalent
-> for the interactive permutation mode.
+`ga.PermutationGenome` is fully exposed:
+
+```python
+import ga
+
+# From a list
+p = ga.PermutationGenome([0, 4, 2, 1, 3])
+print(p.size())            # 5
+print(p.is_valid())        # True — valid permutation of 0..4
+print(p.position_of(2))   # 2
+
+# Random permutation (n=6, seeded)
+p2 = ga.PermutationGenome.random(6, seed=42)
+print(p2.order)
+
+print(p.encoding_name())   # "permutation"
+```
 
 ### 3.5 Set Genome
 
@@ -273,14 +307,19 @@ std::cout << sg.encodingName() << "\n"; // "set<int>"
 
 #### Python
 
-> **Not available in Python bindings yet.**
+`ga.SetGenome` is fully exposed:
+
+```python
+import ga
+
+sg = ga.SetGenome({1, 3, 5, 7})
+print(sg.values)           # {1, 3, 5, 7}
+print(sg.encoding_name())  # "set<int>"
+```
 
 ### 3.6 Map / Dictionary Genome
 
 #### C++
-
-```cpp
-#include <ga/representations/map_genome.hpp>
 
 ga::MapGenome<std::string, double> mg({{"x", 1.0}, {"y", -0.5}});
 std::cout << mg.encodingName() << "\n"; // "map<string, double>"
@@ -288,7 +327,15 @@ std::cout << mg.encodingName() << "\n"; // "map<string, double>"
 
 #### Python
 
-> **Not available in Python bindings yet.**
+`ga.MapGenome` is fully exposed:
+
+```python
+import ga
+
+mg = ga.MapGenome({"x": 1.0, "y": -0.5})
+print(mg.values)            # {"x": 1.0, "y": -0.5}
+print(mg.encoding_name())   # "map<string, double>"
+```
 
 ### 3.7 Tree Genome (for Genetic Programming)
 
@@ -307,17 +354,24 @@ std::cout << nd.encodingName() << "\n"; // "ndarray<float>"
 
 #### Python
 
-> **Not available in Python bindings yet.**
+`ga.NdArrayGenome` is fully exposed:
+
+```python
+import ga
+
+nd = ga.NdArrayGenome(3, 3)   # 3×3 grid, initialised to 0.0
+nd.set(0, 0, 1.5)
+nd.set(1, 2, -0.7)
+print(nd.get(0, 0))           # 1.5
+print(nd.rows, nd.cols)       # 3 3
+print(nd.encoding_name())     # "ndarray"
+```
 
 ---
 
 ## 4. Crossover Operators
 
 ### Available Operators
-
-| Operator | Class | Suitable For |
-|----------|-------|--------------|
-| One-Point | `OnePointCrossover` | binary, real, integer |
 | Two-Point | `TwoPointCrossover` | binary, real, integer |
 | Uniform | `UniformCrossover` | binary, real, integer |
 | Blend (BLX-α) | `BlendCrossover` | real |
@@ -357,7 +411,9 @@ auto [child1, child2] = xover->cross(parent1.genes, parent2.genes);
 
 ### 4.2 Python — exposed operators
 
-Only **one-point** and **two-point** crossover are exposed as factory functions.
+Only **one-point** and **two-point** crossover factory functions are exposed.
+All other crossover operators (Blend, SBX, Arithmetic, permutation-specific, etc.)
+are not individually accessible from Python.
 
 ```python
 import ga
@@ -379,7 +435,7 @@ result = engine.run(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x)))
 ```
 
 > **Python note:** Blend (BLX-α), SBX, Arithmetic, and all permutation-specific
-> crossovers are **not available in Python bindings yet**.
+> crossovers are **not available as Python factory functions**.
 
 ---
 
@@ -419,7 +475,9 @@ mut->mutate(individual.genes);
 
 ### 5.2 Python — exposed operators
 
-Only **Gaussian** and **Uniform** mutation are exposed.
+Only **Gaussian** and **Uniform** mutation factory functions are exposed.
+All other mutation operators (Bit-flip, Swap, Insert, Scramble, Inversion,
+Creep, Random-resetting, Self-adaptive) are not individually accessible from Python.
 
 ```python
 import ga
@@ -443,7 +501,7 @@ print("Best:", result.best_fitness)
 
 > **Python note:** Bit-flip, Swap, Insert, Scramble, Inversion, Creep,
 > Random-resetting, and Self-adaptive mutations are
-> **not available in Python bindings yet**.
+> **not available as Python factory functions**.
 
 ---
 
@@ -624,9 +682,48 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> The high-level `ga::api::Optimizer` C++ class is not bound to Python.
-> Use `ga.GeneticAlgorithm` directly (see [§7](#7-core-ga-run-and-results)).
+Both `ga.Optimizer` (fluent facade) and `ga.OptimizerBuilder` are exposed.
+
+```python
+import ga
+
+# --- Fluent Optimizer ---
+cfg = ga.Config()
+cfg.population_size = 80
+cfg.generations     = 300
+cfg.dimension       = 10
+cfg.bounds          = ga.Bounds(-5.12, 5.12)
+cfg.seed            = 42
+
+result = (ga.Optimizer()
+    .with_config(cfg)
+    .with_seed(42)
+    .optimize(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x))))
+
+print("Best:", result.best_fitness)
+
+# --- Multi-objective via Optimizer ---
+objectives = [
+    lambda x: -x[0]*x[0],
+    lambda x: -(x[0]-2)*(x[0]-2),
+]
+mo_result = (ga.Optimizer()
+    .with_config(cfg)
+    .optimize_multi_objective_nsga2(objectives, population_size=100, generations=200))
+print("Pareto front size:", len(mo_result.pareto_genes))
+
+# --- Builder API ---
+builder = (ga.OptimizerBuilder()
+    .dimension(10)
+    .bounds(-5.12, 5.12)
+    .population_size(80)
+    .generations(300)
+    .seed(42))
+
+opt = builder.build()
+result2 = opt.optimize(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x)))
+print("Builder best:", result2.best_fitness)
+```
 
 ---
 
@@ -840,8 +937,37 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> SPEA2 is implemented in `include/ga/moea/spea2.hpp` (C++ only).
+`ga.Spea2` objective-space utilities are fully exposed:
+
+```python
+import ga
+
+# Sample 4 objective vectors (2 objectives, minimization)
+objectives = [
+    [0.1, 0.9],
+    [0.5, 0.5],
+    [0.9, 0.1],
+    [0.4, 0.6],
+]
+
+spea2 = ga.Spea2()
+
+# Compute SPEA2 strength fitness (lower is better)
+fitness = spea2.strength_fitness_objectives(objectives)
+print("SPEA2 fitness values:", fitness)
+
+# Environmental selection — returns surviving objective vectors
+archive = spea2.environmental_select_objectives(objectives, target_size=2)
+print("Archive size:", len(archive))
+
+# Environmental selection — returns surviving indices
+indices = spea2.environmental_select_indices(objectives, target_size=2)
+print("Archive indices:", indices)
+
+# --- Convenience functions ---
+fitness2  = ga.spea2_strength_fitness(objectives)
+indices2  = ga.spea2_environmental_select_indices(objectives, target_size=2)
+```
 
 ---
 
@@ -861,8 +987,33 @@ ga::moea::MoCmaEs moea;
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> MO-CMA-ES is implemented in `include/ga/moea/mo_cmaes.hpp` (C++ only).
+`ga.MoCmaEs` is fully exposed:
+
+```python
+import ga
+
+cma_cfg = ga.CmaEsConfig()
+cma_cfg.dimension       = 2
+cma_cfg.population_size = 20
+cma_cfg.generations     = 200
+cma_cfg.sigma           = 0.5
+cma_cfg.lower           = -5.0
+cma_cfg.upper           =  5.0
+
+mo_cfg = ga.MoCmaEsConfig()
+mo_cfg.cma     = cma_cfg
+mo_cfg.weights = [0.5, 0.5]   # equal weight for each objective
+
+moea = ga.MoCmaEs(mo_cfg)
+
+def sphere2(x):
+    return x[0]**2 + x[1]**2
+
+result = moea.run(sphere2)
+print("MO-CMA-ES best:", result.best)
+print("Objectives:", result.objectives)
+print("Weighted fitness:", result.weighted_fitness)
+```
 
 ---
 
@@ -901,9 +1052,32 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> Evolution Strategies are implemented in `include/ga/es/evolution_strategies.hpp`
-> (C++ only).
+`ga.EvolutionStrategy` is fully exposed:
+
+```python
+import ga
+
+cfg = ga.EvolutionStrategyConfig()
+cfg.mu           = 10     # parents
+cfg.lambda_      = 50     # offspring
+cfg.dimension    = 5
+cfg.sigma        = 0.3    # initial step size
+cfg.generations  = 200
+cfg.plus_strategy = False  # False=(mu,lambda), True=(mu+lambda)
+cfg.lower        = -5.0
+cfg.upper        =  5.0
+
+es = ga.EvolutionStrategy(cfg)
+
+result = es.run(lambda x: -sum(xi**2 for xi in x))  # maximise negated sphere
+
+print("Best fitness:", result.best_fitness)
+print("Best solution:", result.best)
+
+# Convergence history
+for gen, f in enumerate(result.best_history[::50]):
+    print(f"  Gen {gen*50}: {f:.4f}")
+```
 
 ---
 
@@ -940,8 +1114,27 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> CMA-ES is implemented in `include/ga/es/cmaes.hpp` (C++ only).
+`ga.DiagonalCmaEs` is fully exposed:
+
+```python
+import ga
+
+cfg = ga.CmaEsConfig()
+cfg.dimension       = 10
+cfg.population_size = 20   # offspring count
+cfg.sigma           = 0.5
+cfg.generations     = 500
+cfg.lower           = -5.0
+cfg.upper           =  5.0
+
+cmaes = ga.DiagonalCmaEs(cfg)
+
+result = cmaes.run(lambda x: -sum(xi**2 for xi in x))  # maximise negated sphere
+
+print("Best objective (sphere):", -result.best_fitness)
+print("Best solution:", result.best)
+print("History length:", len(result.history))
+```
 
 ---
 
@@ -1003,6 +1196,56 @@ int main() {
 }
 ```
 
+### 15.2 Python — GP primitives, tree builder, ADF pool
+
+`ga.ValueType`, `ga.Signature`, `ga.Primitive`, `ga.Node`, `ga.TreeGenome`,
+`ga.TreeBuilder`, and `ga.ADFPool` are all fully exposed:
+
+```python
+import ga
+
+# --- Define primitives ---
+plus = ga.Primitive()
+plus.name       = "+"
+plus.is_terminal = False
+plus.signature.return_type = ga.ValueType.double
+plus.signature.arg_types   = [ga.ValueType.double, ga.ValueType.double]
+
+x_term = ga.Primitive()
+x_term.name       = "x"
+x_term.is_terminal = True
+x_term.signature.return_type = ga.ValueType.double
+
+c1 = ga.Primitive()
+c1.name       = "1.0"
+c1.is_terminal = True
+c1.signature.return_type = ga.ValueType.double
+
+# --- Build a random tree ---
+builder = ga.TreeBuilder([plus, x_term, c1])
+tree = builder.grow(max_depth=3,
+                    target_type=ga.ValueType.double,
+                    strongly_typed=True,
+                    seed=42)
+print("Root symbol:", tree.symbol)
+print("Tree size:  ", tree.size())
+
+# --- TreeGenome ---
+genome = ga.TreeGenome(tree)
+print("Has root:", genome.has_root())
+print("Encoding:", genome.encoding_name())
+
+# --- ADF pool ---
+pool = ga.ADFPool()
+pool.put("adf0", tree)
+print("ADF pool size:", pool.size())
+print("ADF has 'adf0':", pool.has("adf0"))
+adf_root = pool.get("adf0")
+print("Retrieved ADF root:", adf_root.symbol)
+```
+
+---
+
 ## 16. Adaptive Operators
 
 Dynamic mutation/crossover rate controller based on diversity and progress metrics.
@@ -1034,9 +1277,25 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> `ga::adaptive::AdaptiveRateController` is implemented in
-> `include/ga/adaptive/adaptive_policy.hpp` (C++ only).
+`ga.AdaptiveRates` and `ga.AdaptiveRateController` are fully exposed:
+
+```python
+import ga
+
+# min_mutation, max_mutation, min_crossover, max_crossover
+controller = ga.AdaptiveRateController(0.01, 0.30, 0.50, 0.95)
+
+rates = ga.AdaptiveRates()
+rates.mutation_rate  = 0.05
+rates.crossover_rate = 0.80
+
+diversity   = 0.10   # low diversity → increase mutation
+improvement = 0.0    # no improvement → increase mutation
+
+adapted = controller.update(rates, diversity, improvement)
+print("Adapted mutation rate: ", adapted.mutation_rate)
+print("Adapted crossover rate:", adapted.crossover_rate)
+```
 
 ---
 
@@ -1079,9 +1338,28 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> `ga::hybrid::HybridOptimizer` is implemented in
-> `include/ga/hybrid/hybrid_optimizer.hpp` (C++ only).
+`ga.HybridOptimizer` is fully exposed:
+
+```python
+import ga
+
+cfg = ga.Config()
+cfg.population_size = 50
+cfg.generations     = 100
+cfg.dimension       = 5
+cfg.bounds          = ga.Bounds(-5.0, 5.0)
+
+def sphere(x):
+    return 1000.0 / (1.0 + sum(xi**2 for xi in x))
+
+# Optional local search callable (list[float] -> list[float] or None)
+def local_search(genes):
+    return [max(-5.0, min(5.0, g * 0.99)) for g in genes]
+
+opt = ga.HybridOptimizer(cfg)
+result = opt.run(sphere, local_search=local_search, local_search_restarts=10)
+print("Hybrid best:", result.best_fitness)
+```
 
 ---
 
@@ -1132,9 +1410,33 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> Constraint handling is implemented in `include/ga/constraints/constraints.hpp`
-> (C++ only).
+`ga.ConstraintSet` and related helpers are fully exposed:
+
+```python
+import ga
+
+cs = ga.ConstraintSet()
+
+# Hard constraint: x[0] + x[1] <= 1.0
+cs.add_hard_constraint(lambda x: x[0] + x[1] <= 1.0)
+
+# Soft penalty: penalise x[0] < 0
+cs.add_soft_penalty(lambda x: max(0.0, -x[0]) * 100.0)
+
+# Repair: clamp each gene to [0, inf)
+cs.add_repair(lambda x: [max(0.0, xi) for xi in x])
+
+genes = [0.5, 0.8]
+print("Feasible:", ga.is_feasible(genes, cs))
+print("Penalty:", ga.total_penalty(genes, cs))
+
+repaired = ga.apply_repairs(genes, cs)
+print("Repaired genes:", repaired)
+
+base_fitness = 500.0
+adjusted = ga.penalized_fitness(base_fitness, genes, cs, infeasible_penalty=1e6)
+print("Adjusted fitness:", adjusted)
+```
 
 ---
 
@@ -1265,9 +1567,34 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> Co-evolution is implemented in `include/ga/coevolution/coevolution.hpp`
-> (C++ only).
+`ga.CoevolutionConfig` and `ga.CoevolutionEngine` are fully exposed:
+
+```python
+import ga
+
+cfg = ga.CoevolutionConfig()
+cfg.generations = 100
+cfg.seed        = 42
+
+engine = ga.CoevolutionEngine(cfg)
+
+# Build two populations (list of list-of-Individual)
+pop1 = [ga.Individual() for _ in range(20)]
+pop2 = [ga.Individual() for _ in range(20)]
+for ind in pop1 + pop2:
+    ind.evaluation.objectives = [1.0]  # placeholder
+
+def evaluate(pops):
+    for pop in pops:
+        for ind in pop:
+            ind.evaluation.objectives = [1.0]  # custom evaluation logic
+
+def reproduce(pops):
+    pass  # custom reproduction logic
+
+result = engine.run([pop1, pop2], evaluate=evaluate, reproduce=reproduce)
+print("Populations returned:", len(result))
+```
 
 ---
 
@@ -1337,14 +1664,22 @@ state.rng_state  = "py-run"
 # Save to JSON
 ga.checkpoint_save_json("run.json", state)
 
-# Reload
+# Save to binary
+ga.checkpoint_save_binary("run.bin", state)
+
+# Reload from JSON
 loaded = ga.checkpoint_load_json("run.json")
 print("Generation:", loaded.generation)
 print("Best fitness:", loaded.result.best_fitness)
+
+# Reload from binary
+loaded_bin = ga.checkpoint_load_binary("run.bin")
+print("Binary generation:", loaded_bin.generation)
 ```
 
-> **Note:** Binary checkpoint (`saveBinary` / `loadBinary`) is C++ only;
-> Python bindings expose the JSON checkpoint API only.
+> **Note:** Both JSON and binary checkpoints are exposed in Python.
+> `ga.checkpoint_save_binary` / `ga.checkpoint_load_binary` are available
+> alongside the JSON variants.
 
 ---
 
@@ -1382,23 +1717,27 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> `ga::tracking::ExperimentTracker` is implemented in
-> `include/ga/tracking/experiment_tracker.hpp` (C++ only).
->
-> As a workaround in Python, log metrics manually:
->
-> ```python
-> import ga, csv
->
-> result = engine.run(my_fitness)
->
-> with open("metrics.csv", "w", newline="") as f:
->     w = csv.writer(f)
->     w.writerow(["generation", "best_fitness", "avg_fitness"])
->     for gen, (b, a) in enumerate(zip(result.best_history, result.avg_history)):
->         w.writerow([gen, b, a])
-> ```
+`ga.ExperimentTracker` is fully exposed:
+
+```python
+import ga
+
+cfg = ga.Config()
+cfg.population_size = 60
+cfg.generations     = 100
+cfg.dimension       = 5
+cfg.bounds          = ga.Bounds(-5.0, 5.0)
+cfg.seed            = 99
+
+tracker = ga.ExperimentTracker("experiment_001")
+tracker.write_config(cfg, "experiment_001_config.txt")
+
+engine = ga.GeneticAlgorithm(cfg)
+result = engine.run(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x)))
+
+tracker.write_history_csv(result, "experiment_001_history.csv")
+tracker.write_best_solution_csv(result, "experiment_001_best.csv")
+```
 
 ---
 
@@ -1441,24 +1780,33 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> Visualization/export helpers are in `include/ga/visualization/export.hpp`
-> (C++ only).
->
-> As a workaround in Python, export from `result.best_history` directly:
->
-> ```python
-> import ga, csv
->
-> result = engine.run(my_fitness)
->
-> with open("fitness.csv", "w", newline="") as f:
->     w = csv.writer(f)
->     w.writerow(["generation", "best_fitness", "avg_fitness"])
->     for gen, (b, a) in enumerate(zip(result.best_history, result.avg_history)):
->         w.writerow([gen, b, a])
-> print("Exported fitness.csv")
-> ```
+`ga.export_fitness_curve_csv`, `ga.export_pareto_front_csv`, and
+`ga.export_diversity_csv` are fully exposed:
+
+```python
+import ga
+
+cfg = ga.Config()
+cfg.population_size = 50
+cfg.generations     = 100
+cfg.dimension       = 5
+cfg.bounds          = ga.Bounds(-5.0, 5.0)
+
+engine = ga.GeneticAlgorithm(cfg)
+result = engine.run(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x)))
+
+# Export fitness curve (generation, best, avg)
+ga.export_fitness_curve_csv(result.best_history, result.avg_history, "fitness.csv")
+print("Exported fitness.csv")
+
+# Export diversity trend (supply your own per-generation values)
+diversity = [0.5] * len(result.best_history)
+ga.export_diversity_csv(diversity, "diversity.csv")
+
+# Export Pareto front (for multi-objective runs)
+pareto = [[0.1, 0.9], [0.5, 0.5], [0.9, 0.1]]
+ga.export_pareto_front_csv(pareto, "pareto.csv")
+```
 
 ---
 
@@ -1724,6 +2072,10 @@ python3 python/example.py
 | `ga.Config` | Algorithm configuration |
 | `ga.Bounds` | Gene search bounds |
 | `ga.Result` | Run results (best genes, fitness, history) |
+| `ga.OptimizationResult` | Generic optimization result container |
+| `ga.Evaluation` | Evaluation / objective record |
+| `ga.Individual` | Generic individual container |
+| `ga.IGenome` | Genome interface base class |
 | `ga.GeneticAlgorithm` | Main single-objective GA engine |
 | `ga.GeneticAlgorithm.set_crossover_operator` | Plug in a crossover operator |
 | `ga.GeneticAlgorithm.set_mutation_operator` | Plug in a mutation operator |
@@ -1731,16 +2083,76 @@ python3 python/example.py
 | `ga.make_two_point_crossover` | Factory: two-point crossover |
 | `ga.make_gaussian_mutation` | Factory: Gaussian mutation |
 | `ga.make_uniform_mutation` | Factory: Uniform mutation |
+| **Representations** | |
+| `ga.VectorGenome` | Real-valued genome (`double`) |
+| `ga.BitsetGenome` | Binary/bitset genome |
+| `ga.PermutationGenome` | Permutation genome with ordering utilities |
+| `ga.SetGenome` | Set-based genome |
+| `ga.MapGenome` | Map/dictionary genome |
+| `ga.NdArrayGenome` | N-dimensional array genome |
+| `ga.TreeGenome` | Tree genome for genetic programming |
+| **Genetic Programming** | |
+| `ga.ValueType` | Enum of GP value types (`any`, `bool`, `int`, `double`) |
+| `ga.Signature` | GP primitive signature (return type + arg types) |
+| `ga.Primitive` | GP primitive descriptor |
+| `ga.Node` | GP tree node (symbol, return type, children) |
+| `ga.TreeBuilder` | Random GP tree generator (grow method) |
+| `ga.ADFPool` | Automatically Defined Function registry |
+| **Multi-Objective: NSGA-II** | |
 | `ga.Nsga2Config` | NSGA-II configuration |
 | `ga.Nsga2` | NSGA-II objective-space utilities |
 | `ga.nsga2_non_dominated_sort` | Convenience: non-dominated sorting |
 | `ga.nsga2_crowding_distance` | Convenience: crowding distance |
+| **Multi-Objective: NSGA-III** | |
 | `ga.Nsga3` | NSGA-III objective-space utilities |
 | `ga.nsga3_reference_points` | Convenience: Das-Dennis reference points |
-| `ga.nsga3_environmental_select_indices` | Convenience: NSGA-III selection |
+| `ga.nsga3_environmental_select_indices` | Convenience: NSGA-III environmental selection |
+| **Multi-Objective: SPEA2** | |
+| `ga.Spea2` | SPEA2 objective-space utilities |
+| `ga.spea2_strength_fitness` | Convenience: SPEA2 strength fitness values |
+| `ga.spea2_environmental_select_indices` | Convenience: SPEA2 environmental selection indices |
+| **Multi-Objective: MO-CMA-ES** | |
+| `ga.MoCmaEsConfig` | MO-CMA-ES configuration |
+| `ga.MoCmaEsResult` | MO-CMA-ES result container |
+| `ga.MoCmaEs` | Multi-objective CMA-ES wrapper |
+| **Evolution Strategies** | |
+| `ga.EvolutionStrategyConfig` | ES configuration (μ, λ, σ, etc.) |
+| `ga.EvolutionStrategyResult` | ES result container |
+| `ga.EvolutionStrategy` | (μ,λ)/(μ+λ) evolution strategy |
+| **CMA-ES** | |
+| `ga.CmaEsConfig` | CMA-ES configuration |
+| `ga.CmaEsResult` | CMA-ES result container |
+| `ga.DiagonalCmaEs` | Diagonal CMA-ES optimizer |
+| **High-Level Optimizer API** | |
+| `ga.Optimizer` | Fluent high-level optimizer facade |
+| `ga.OptimizerBuilder` | Builder for `ga.Optimizer` |
+| `ga.MultiObjectiveResult` | Multi-objective optimizer result |
+| **Constraint Handling** | |
+| `ga.ConstraintSet` | Hard constraints, soft penalties, and repairs |
+| `ga.is_feasible` | Check all hard constraints |
+| `ga.total_penalty` | Sum all soft penalties |
+| `ga.apply_repairs` | Apply all repair functions to a gene vector |
+| `ga.penalized_fitness` | Base fitness adjusted for constraint violations |
+| **Adaptive Operators** | |
+| `ga.AdaptiveRates` | Mutation/crossover rate container |
+| `ga.AdaptiveRateController` | Dynamic rate controller based on diversity/progress |
+| **Hybrid Optimization** | |
+| `ga.HybridOptimizer` | GA with optional local search (memetic) |
+| **Co-Evolution** | |
+| `ga.CoevolutionConfig` | Co-evolution configuration |
+| `ga.CoevolutionEngine` | Multi-population co-evolution engine |
+| **Checkpointing** | |
 | `ga.CheckpointState` | Checkpoint data container |
 | `ga.checkpoint_save_json` | Save checkpoint to JSON |
 | `ga.checkpoint_load_json` | Load checkpoint from JSON |
+| `ga.checkpoint_save_binary` | Save checkpoint to binary file |
+| `ga.checkpoint_load_binary` | Load checkpoint from binary file |
+| **Experiment Tracking** | |
+| `ga.ExperimentTracker` | Logs config, history CSV, and best-solution CSV |
+| **Visualization / CSV Export** | |
+| `ga.export_fitness_curve_csv` | Write fitness curve (best + avg) to CSV |
+| `ga.export_pareto_front_csv` | Write Pareto front objectives to CSV |
+| `ga.export_diversity_csv` | Write per-generation diversity values to CSV |
 
 ---
 
