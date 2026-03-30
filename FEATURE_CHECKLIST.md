@@ -150,7 +150,7 @@ public:
     - operator/adaptation state
   - Store in binary for speed and JSON for inspectability.
 
-## 2.10 Adaptive Genetic Operators (Beyond DEAP)
+## 2.10 Adaptive Genetic Operators
 
 - What to include:
   - Dynamic mutation and crossover rates
@@ -162,7 +162,7 @@ public:
     - if diversity drops and no improvement, increase mutation
     - if stable improvement and healthy diversity, decrease mutation
 
-## 2.11 Hybrid Optimization (Beyond DEAP)
+## 2.11 Hybrid Optimization
 
 - What to include:
   - GA + local search, GA + PSO/DE
@@ -187,7 +187,7 @@ public:
     - repair strategy
   - Support both static and adaptive penalties.
 
-## 2.13 Experiment Tracking (Beyond DEAP)
+## 2.13 Experiment Tracking
 
 - What to include:
   - Config, metrics, artifacts, and run metadata logs
@@ -199,7 +199,7 @@ public:
     - per-generation metrics
     - best solutions and checkpoints
 
-## 2.14 Visualization (Beyond DEAP)
+## 2.14 Visualization
 
 - What to include:
   - Fitness curve, Pareto front, diversity trend plots

@@ -117,13 +117,13 @@ g++ myapp.cpp -o myapp -Ibuild/_deps/genetic_algorithm/include -Lbuild/lib -lgen
 ### Python Usage (via pybind11)
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 def sphere(x):
     return 1000.0 / (1.0 + sum(xi**2 for xi in x))
 
 cfg = ga.Config()
-cfg.populationSize = 50
+cfg.population_size = 50
 cfg.generations = 100
 cfg.dimension = 10
 cfg.bounds = ga.Bounds(-5.12, 5.12)
@@ -131,15 +131,13 @@ cfg.bounds = ga.Bounds(-5.12, 5.12)
 alg = ga.GeneticAlgorithm(cfg)
 result = alg.run(sphere)
 
-print(f"Best fitness: {result.bestFitness}")
-print(f"Best solution: {result.bestGenes}")
+print(f"Best fitness: {result.best_fitness}")
+print(f"Best solution: {result.best_genes}")
 ```
 
 **Setup:**
 ```bash
-pip install pybind11
-cmake --build build
-export PYTHONPATH=$PWD/build/python:$PYTHONPATH
+pip install .
 python my_script.py
 ```
 

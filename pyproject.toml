@@ -1,5 +1,8 @@
 [build-system]
-requires = ["scikit-build-core>=0.10", "pybind11>=2.6"]
+requires = [
+    "scikit-build-core>=0.10",
+    "pybind11>=2.6",
+]
 build-backend = "scikit_build_core.build"
 
 [project]
@@ -24,5 +27,17 @@ Repository = "https://github.com/Rahuldrabit/Genetic_algorithm"
 Issues = "https://github.com/Rahuldrabit/Genetic_algorithm/issues"
 
 [tool.scikit-build]
-# This project ships a compiled extension module (`ga`) and no pure-Python package tree.
-wheel.packages = []
+# Ship a small pure-Python package wrapper + a compiled extension installed by CMake.
+#
+# - Distribution name (PyPI): genetic-algorithm-lib
+# - Import name (Python):     genetic_algorithm_lib
+wheel.packages = ["python/genetic_algorithm_lib"]
+
+# Safety net: exclude local/dev artifacts from the sdist.
+sdist.exclude = [
+    ".venv/**",
+    ".scikit-build/**",
+    "_skbuild/**",
+    "build/**",
+    "dist/**",
+]

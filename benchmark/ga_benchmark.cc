@@ -8,6 +8,12 @@
 #include <algorithm>
 #include <sstream>
 
+// MSVC does not guarantee `M_PI` is defined unless special macros are set.
+// Define it here to keep the benchmark code portable.
+#ifndef M_PI
+#define M_PI 3.14159265358979323846
+#endif
+
 // Include all operators for testing
 #include "crossover/one_point_crossover.h"
 #include "crossover/two_point_crossover.h"

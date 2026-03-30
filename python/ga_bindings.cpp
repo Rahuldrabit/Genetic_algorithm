@@ -1,7 +1,7 @@
 /**
  * Python bindings for the Genetic Algorithm framework using pybind11.
  *
- * Exposes:
+ * Exposes (via `import genetic_algorithm_lib as ga`):
  *  - ga.Config        - Algorithm configuration
  *  - ga.Bounds        - Gene bounds (lower, upper)
  *  - ga.Result        - Run results
@@ -42,6 +42,7 @@
 #include "ga/moea/nsga3.hpp"
 #include "ga/moea/mo_cmaes.hpp"
 #include "ga/moea/spea2.hpp"
+#include "ga/plugin/registry.hpp"
 #include "ga/representations/bitset_genome.hpp"
 #include "ga/representations/map_genome.hpp"
 #include "ga/representations/ndarray_genome.hpp"
@@ -54,7 +55,34 @@
 
 // Full type definitions needed by pybind11 for operator ownership transfer
 #include "mutation/base_mutation.h"
+#include "mutation/bit_flip_mutation.h"
+#include "mutation/creep_mutation.h"
+#include "mutation/gaussian_mutation.h"
+#include "mutation/insert_mutation.h"
+#include "mutation/inversion_mutation.h"
+#include "mutation/list_mutation.h"
+#include "mutation/random_resetting_mutation.h"
+#include "mutation/scramble_mutation.h"
+#include "mutation/self_adaptive_mutation.h"
+#include "mutation/swap_mutation.h"
+#include "mutation/uniform_mutation.h"
 #include "crossover/base_crossover.h"
+#include "crossover/blend_crossover.h"
+#include "crossover/cut_and_crossfill_crossover.h"
+#include "crossover/cycle_crossover.h"
+#include "crossover/differential_evolution_crossover.h"
+#include "crossover/diploid_recombination.h"
+#include "crossover/edge_crossover.h"
+#include "crossover/intermediate_recombination.h"
+#include "crossover/line_recombination.h"
+#include "crossover/multi_point_crossover.h"
+#include "crossover/one_point_crossover.h"
+#include "crossover/order_crossover.h"
+#include "crossover/partially_mapped_crossover.h"
+#include "crossover/simulated_binary_crossover.h"
+#include "crossover/two_point_crossover.h"
+#include "crossover/uniform_crossover.h"
+#include "crossover/uniform_k_vector_crossover.h"
 #include "selection-operator/tournament_selection.h"
 #include "selection-operator/roulette_wheel_selection.h"
 #include "selection-operator/rank_selection.h"
@@ -128,7 +156,7 @@ using DoubleBatchEvaluator =
                                       double,
                                       std::function<double(const std::vector<double>&)>>;
 
-PYBIND11_MODULE(ga, m) {
+PYBIND11_MODULE(_core, m) {
     m.doc() = "Genetic Algorithm framework — C++ core with Python bindings";
 
     // ------------------------------------------------------------------ Bounds
@@ -203,6 +231,12 @@ PYBIND11_MODULE(ga, m) {
         .def(py::init<std::vector<double>>(), py::arg("genes"))
         .def_readwrite("genes", &ga::representations::VectorGenome<double>::genes)
         .def("encoding_name", &ga::representations::VectorGenome<double>::encodingName);
+
+    py::class_<ga::representations::VectorGenome<int>, ga::IGenome>(m, "VectorGenomeInt")
+        .def(py::init<>())
+        .def(py::init<std::vector<int>>(), py::arg("genes"))
+        .def_readwrite("genes", &ga::representations::VectorGenome<int>::genes)
+        .def("encoding_name", &ga::representations::VectorGenome<int>::encodingName);
 
     py::class_<ga::representations::BitsetGenome, ga::IGenome>(m, "BitsetGenome")
         .def(py::init<>())
@@ -326,7 +360,7 @@ PYBIND11_MODULE(ga, m) {
 
         Example
         -------
-        >>> import ga
+        >>> import genetic_algorithm_lib as ga
         >>> import math
         >>> cfg = ga.Config()
         >>> cfg.population_size = 60
@@ -890,6 +924,502 @@ PYBIND11_MODULE(ga, m) {
         .def("operator_results", [](const GABenchmark& self) { return self.operatorResults(); })
         .def("function_results", [](const GABenchmark& self) { return self.functionResults(); })
         .def("scalability_results", [](const GABenchmark& self) { return self.scalabilityResults(); });
+
+    // ------------------------------------------------------- Operator classes
+    py::class_<CrossoverOperator, py::smart_holder>(m, "CrossoverOperator", "Base class for crossover operators")
+        .def_property_readonly("name", &CrossoverOperator::getName)
+        .def_property_readonly("operation_count", &CrossoverOperator::getOperationCount)
+        .def_property_readonly("error_count", &CrossoverOperator::getErrorCount)
+        .def_property_readonly("error_rate", &CrossoverOperator::getErrorRate)
+        .def("reset_statistics", &CrossoverOperator::resetStatistics);
+
+    py::class_<OnePointCrossover, CrossoverOperator, py::smart_holder>(m, "OnePointCrossover")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return OnePointCrossover{};
+            return OnePointCrossover{seed};
+        }), py::arg("seed") = 0u)
+        .def("crossover_real",
+             [](OnePointCrossover& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_bits",
+             [](OnePointCrossover& self, const std::vector<bool>& parent1, const std::vector<bool>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_int",
+             [](OnePointCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<TwoPointCrossover, CrossoverOperator, py::smart_holder>(m, "TwoPointCrossover")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return TwoPointCrossover{};
+            return TwoPointCrossover{seed};
+        }), py::arg("seed") = 0u)
+        .def("crossover_real",
+             [](TwoPointCrossover& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_bits",
+             [](TwoPointCrossover& self, const std::vector<bool>& parent1, const std::vector<bool>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_int",
+             [](TwoPointCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<UniformCrossover, CrossoverOperator, py::smart_holder>(m, "UniformCrossover")
+        .def(py::init([](double probability, unsigned seed) {
+            if (seed == 0) return UniformCrossover{probability};
+            return UniformCrossover{probability, seed};
+        }), py::arg("probability") = 0.5, py::arg("seed") = 0u)
+        .def("set_probability", &UniformCrossover::setProbability, py::arg("probability"))
+        .def("get_probability", &UniformCrossover::getProbability)
+        .def("crossover_real",
+             [](UniformCrossover& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_bits",
+             [](UniformCrossover& self, const std::vector<bool>& parent1, const std::vector<bool>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_int",
+             [](UniformCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<MultiPointCrossover, CrossoverOperator, py::smart_holder>(m, "MultiPointCrossover")
+        .def(py::init([](int points, unsigned seed) {
+            if (seed == 0) return MultiPointCrossover{points};
+            return MultiPointCrossover{points, seed};
+        }), py::arg("points") = 3, py::arg("seed") = 0u)
+        .def("set_num_points", &MultiPointCrossover::setNumPoints, py::arg("points"))
+        .def("get_num_points", &MultiPointCrossover::getNumPoints)
+        .def("crossover_real",
+             [](MultiPointCrossover& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_bits",
+             [](MultiPointCrossover& self, const std::vector<bool>& parent1, const std::vector<bool>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_int",
+             [](MultiPointCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<BlendCrossover, CrossoverOperator, py::smart_holder>(m, "BlendCrossover")
+        .def(py::init([](double alpha, unsigned seed) {
+            if (seed == 0) return BlendCrossover{alpha};
+            return BlendCrossover{alpha, seed};
+        }), py::arg("alpha") = 0.5, py::arg("seed") = 0u)
+        .def("set_alpha", &BlendCrossover::setAlpha, py::arg("alpha"))
+        .def("get_alpha", &BlendCrossover::getAlpha)
+        .def("crossover_real",
+             [](BlendCrossover& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<SimulatedBinaryCrossover, CrossoverOperator, py::smart_holder>(m, "SimulatedBinaryCrossover")
+        .def(py::init([](double eta, unsigned seed) {
+            if (seed == 0) return SimulatedBinaryCrossover{eta};
+            return SimulatedBinaryCrossover{eta, seed};
+        }), py::arg("eta") = 2.0, py::arg("seed") = 0u)
+        .def("set_eta", &SimulatedBinaryCrossover::setEta, py::arg("eta"))
+        .def("get_eta", &SimulatedBinaryCrossover::getEta)
+        .def("crossover_real",
+             [](SimulatedBinaryCrossover& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<LineRecombination, CrossoverOperator, py::smart_holder>(m, "LineRecombination")
+        .def(py::init([](double extension_factor, unsigned seed) {
+            if (seed == 0) return LineRecombination{extension_factor};
+            return LineRecombination{extension_factor, seed};
+        }), py::arg("extension_factor") = 0.1, py::arg("seed") = 0u)
+        .def("crossover_real",
+             [](LineRecombination& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<IntermediateRecombination, CrossoverOperator, py::smart_holder>(m, "IntermediateRecombination")
+        .def(py::init([](double alpha, unsigned seed) {
+            if (seed == 0) return IntermediateRecombination{alpha};
+            return IntermediateRecombination{alpha, seed};
+        }), py::arg("alpha") = 0.5, py::arg("seed") = 0u)
+        .def("crossover_real",
+             [](IntermediateRecombination& self, const std::vector<double>& parent1, const std::vector<double>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"))
+        .def("single_arithmetic_recombination", &IntermediateRecombination::singleArithmeticRecombination,
+             py::arg("parent1"), py::arg("parent2"))
+        .def("whole_arithmetic_recombination", &IntermediateRecombination::wholeArithmeticRecombination,
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<DifferentialEvolutionCrossover, CrossoverOperator, py::smart_holder>(m, "DifferentialEvolutionCrossover")
+        .def(py::init([](double crossover_rate, unsigned seed) {
+            if (seed == 0) return DifferentialEvolutionCrossover{crossover_rate};
+            return DifferentialEvolutionCrossover{crossover_rate, seed};
+        }), py::arg("crossover_rate") = 0.5, py::arg("seed") = 0u)
+        .def("perform_crossover", &DifferentialEvolutionCrossover::performCrossover,
+             py::arg("target"), py::arg("mutant"));
+
+    py::class_<UniformKVectorCrossover, CrossoverOperator, py::smart_holder>(m, "UniformKVectorCrossover")
+        .def(py::init([](double swap_probability, unsigned seed) {
+            if (seed == 0) return UniformKVectorCrossover{swap_probability};
+            return UniformKVectorCrossover{swap_probability, seed};
+        }), py::arg("swap_probability") = 0.1, py::arg("seed") = 0u)
+        .def("crossover_real",
+             [](UniformKVectorCrossover& self, const std::vector<std::vector<double>>& parents) {
+                 return self.crossover(parents);
+             },
+             py::arg("parents"))
+        .def("crossover_bits",
+             [](UniformKVectorCrossover& self, const std::vector<std::vector<bool>>& parents) {
+                 return self.crossover(parents);
+             },
+             py::arg("parents"))
+        .def("crossover_int",
+             [](UniformKVectorCrossover& self, const std::vector<std::vector<int>>& parents) {
+                 return self.crossover(parents);
+             },
+             py::arg("parents"));
+
+    py::class_<OrderCrossover, CrossoverOperator, py::smart_holder>(m, "OrderCrossover")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return OrderCrossover{};
+            return OrderCrossover{seed};
+        }), py::arg("seed") = 0u)
+        .def("crossover_perm",
+             [](OrderCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<PartiallyMappedCrossover, CrossoverOperator, py::smart_holder>(m, "PartiallyMappedCrossover")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return PartiallyMappedCrossover{};
+            return PartiallyMappedCrossover{seed};
+        }), py::arg("seed") = 0u)
+        .def("crossover_perm",
+             [](PartiallyMappedCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<CycleCrossover, CrossoverOperator, py::smart_holder>(m, "CycleCrossover")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return CycleCrossover{};
+            return CycleCrossover{seed};
+        }), py::arg("seed") = 0u)
+        .def("crossover_perm",
+             [](CycleCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<CutAndCrossfillCrossover, CrossoverOperator, py::smart_holder>(m, "CutAndCrossfillCrossover")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return CutAndCrossfillCrossover{};
+            return CutAndCrossfillCrossover{seed};
+        }), py::arg("seed") = 0u)
+        .def("crossover_perm",
+             [](CutAndCrossfillCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<EdgeCrossover, CrossoverOperator, py::smart_holder>(m, "EdgeCrossover")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return EdgeCrossover{};
+            return EdgeCrossover{seed};
+        }), py::arg("seed") = 0u)
+        .def("perform_crossover", &EdgeCrossover::performCrossover,
+             py::arg("parent1"), py::arg("parent2"))
+        .def("crossover_perm",
+             [](EdgeCrossover& self, const std::vector<int>& parent1, const std::vector<int>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<DiploidRecombination, CrossoverOperator, py::smart_holder>(m, "DiploidRecombination")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return DiploidRecombination{};
+            return DiploidRecombination{seed};
+        }), py::arg("seed") = 0u)
+        .def("crossover_diploid",
+             [](DiploidRecombination& self,
+                const std::pair<std::vector<bool>, std::vector<bool>>& parent1,
+                const std::pair<std::vector<bool>, std::vector<bool>>& parent2) {
+                 return self.crossover(parent1, parent2);
+             },
+             py::arg("parent1"), py::arg("parent2"));
+
+    py::class_<MutationOperator::MutationStats>(m, "MutationStats", "Mutation operator statistics")
+        .def(py::init<>())
+        .def_readonly("total_mutations", &MutationOperator::MutationStats::totalMutations)
+        .def_readonly("successful_mutations", &MutationOperator::MutationStats::successfulMutations)
+        .def_readonly("failed_mutations", &MutationOperator::MutationStats::failedMutations)
+        .def_readonly("average_perturbation", &MutationOperator::MutationStats::averagePerturbation)
+        .def("reset", &MutationOperator::MutationStats::reset);
+
+    py::class_<MutationOperator, py::smart_holder>(m, "MutationOperator", "Base class for mutation operators")
+        .def_property_readonly("name", &MutationOperator::getName)
+        .def("set_seed", &MutationOperator::setSeed, py::arg("seed"))
+        .def("reset_statistics", &MutationOperator::resetStatistics)
+        .def_property_readonly("statistics", &MutationOperator::getStatistics,
+                               py::return_value_policy::reference_internal);
+
+    py::class_<GaussianMutation, MutationOperator, py::smart_holder>(m, "GaussianMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return GaussianMutation{};
+            return GaussianMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_real",
+             [](const GaussianMutation& self,
+                std::vector<double> chromosome,
+                double pm,
+                double sigma,
+                const std::vector<double>& lower_bounds,
+                const std::vector<double>& upper_bounds) {
+                 self.mutate(chromosome, pm, sigma, lower_bounds, upper_bounds);
+                 return chromosome;
+             },
+             py::arg("chromosome"),
+             py::arg("pm"),
+             py::arg("sigma"),
+             py::arg("lower_bounds"),
+             py::arg("upper_bounds"));
+
+    py::class_<UniformMutation, MutationOperator, py::smart_holder>(m, "UniformMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return UniformMutation{};
+            return UniformMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_real",
+             [](const UniformMutation& self,
+                std::vector<double> chromosome,
+                double pm,
+                const std::vector<double>& lower_bounds,
+                const std::vector<double>& upper_bounds) {
+                 self.mutate(chromosome, pm, lower_bounds, upper_bounds);
+                 return chromosome;
+             },
+             py::arg("chromosome"),
+             py::arg("pm"),
+             py::arg("lower_bounds"),
+             py::arg("upper_bounds"));
+
+    py::class_<BitFlipMutation, MutationOperator, py::smart_holder>(m, "BitFlipMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return BitFlipMutation{};
+            return BitFlipMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_bits",
+             [](const BitFlipMutation& self, std::vector<bool> chromosome, double pm) {
+                 self.mutate(chromosome, pm);
+                 return chromosome;
+             },
+             py::arg("chromosome"),
+             py::arg("pm"))
+        .def("mutate_string",
+             [](const BitFlipMutation& self, std::string chromosome, double pm) {
+                 self.mutate(chromosome, pm);
+                 return chromosome;
+             },
+             py::arg("chromosome"),
+             py::arg("pm"));
+
+    py::class_<RandomResettingMutation, MutationOperator, py::smart_holder>(m, "RandomResettingMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return RandomResettingMutation{};
+            return RandomResettingMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_int",
+             [](const RandomResettingMutation& self, std::vector<int> chromosome, double pm, int min_val, int max_val) {
+                 self.mutate(chromosome, pm, min_val, max_val);
+                 return chromosome;
+             },
+             py::arg("chromosome"),
+             py::arg("pm"),
+             py::arg("min_val"),
+             py::arg("max_val"));
+
+    py::class_<CreepMutation, MutationOperator, py::smart_holder>(m, "CreepMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return CreepMutation{};
+            return CreepMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_int",
+             [](const CreepMutation& self,
+                std::vector<int> chromosome,
+                double pm,
+                int step_size,
+                int min_val,
+                int max_val) {
+                 self.mutate(chromosome, pm, step_size, min_val, max_val);
+                 return chromosome;
+             },
+             py::arg("chromosome"),
+             py::arg("pm"),
+             py::arg("step_size"),
+             py::arg("min_val"),
+             py::arg("max_val"));
+
+    py::class_<SwapMutation, MutationOperator, py::smart_holder>(m, "SwapMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return SwapMutation{};
+            return SwapMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_perm",
+             [](const SwapMutation& self, std::vector<int> permutation, double pm) {
+                 self.mutate(permutation, pm);
+                 return permutation;
+             },
+             py::arg("permutation"),
+             py::arg("pm"));
+
+    py::class_<InversionMutation, MutationOperator, py::smart_holder>(m, "InversionMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return InversionMutation{};
+            return InversionMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_perm",
+             [](const InversionMutation& self, std::vector<int> permutation, double pm) {
+                 self.mutate(permutation, pm);
+                 return permutation;
+             },
+             py::arg("permutation"),
+             py::arg("pm"));
+
+    py::class_<InsertMutation, MutationOperator, py::smart_holder>(m, "InsertMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return InsertMutation{};
+            return InsertMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_perm",
+             [](const InsertMutation& self, std::vector<int> permutation, double pm) {
+                 self.mutate(permutation, pm);
+                 return permutation;
+             },
+             py::arg("permutation"),
+             py::arg("pm"));
+
+    py::class_<ScrambleMutation, MutationOperator, py::smart_holder>(m, "ScrambleMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return ScrambleMutation{};
+            return ScrambleMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_perm",
+             [](const ScrambleMutation& self, std::vector<int> permutation, double pm) {
+                 self.mutate(permutation, pm);
+                 return permutation;
+             },
+             py::arg("permutation"),
+             py::arg("pm"));
+
+    py::class_<ListMutation, MutationOperator, py::smart_holder>(m, "ListMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return ListMutation{};
+            return ListMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate_list",
+             [](const ListMutation& self,
+                std::vector<int> values,
+                double pm_content,
+                double pm_size,
+                int min_val,
+                int max_val,
+                std::size_t min_size,
+                std::size_t max_size) {
+                 self.mutate(values, pm_content, pm_size, min_val, max_val, min_size, max_size);
+                 return values;
+             },
+             py::arg("values"),
+             py::arg("pm_content"),
+             py::arg("pm_size"),
+             py::arg("min_val"),
+             py::arg("max_val"),
+             py::arg("min_size"),
+             py::arg("max_size"));
+
+    py::class_<SelfAdaptiveMutation::SelfAdaptiveIndividual>(m, "SelfAdaptiveIndividual",
+                                                            "Self-adaptive individual (genes + sigma)")
+        .def(py::init<std::size_t, double>(), py::arg("size"), py::arg("initial_sigma"))
+        .def_readwrite("genes", &SelfAdaptiveMutation::SelfAdaptiveIndividual::genes)
+        .def_readwrite("sigma", &SelfAdaptiveMutation::SelfAdaptiveIndividual::sigma);
+
+    py::class_<SelfAdaptiveMutation, MutationOperator, py::smart_holder>(m, "SelfAdaptiveMutation")
+        .def(py::init([](unsigned seed) {
+            if (seed == 0) return SelfAdaptiveMutation{};
+            return SelfAdaptiveMutation{seed};
+        }), py::arg("seed") = 0u)
+        .def("mutate",
+             [](const SelfAdaptiveMutation& self,
+                SelfAdaptiveMutation::SelfAdaptiveIndividual& individual,
+                const std::vector<double>& lower_bounds,
+                const std::vector<double>& upper_bounds,
+                double tau) {
+                 self.mutate(individual, lower_bounds, upper_bounds, tau);
+             },
+             py::arg("individual"),
+             py::arg("lower_bounds"),
+             py::arg("upper_bounds"),
+             py::arg("tau") = 0.1);
+
+    // ------------------------------------------------------- Plugin registries
+    using CrossoverRegistry = ga::plugin::Registry<CrossoverOperator>;
+    py::class_<CrossoverRegistry>(m, "CrossoverRegistry", "Registry of crossover operator factories")
+        .def(py::init<>())
+        .def("register_factory",
+             [](CrossoverRegistry& self, const std::string& name, py::function factory) {
+                 py::object f = std::move(factory);
+                 self.registerFactory(name, [f]() mutable {
+                     py::gil_scoped_acquire acquire;
+                     py::object created = f();
+                     return created.cast<std::unique_ptr<CrossoverOperator>>();
+                 });
+             },
+             py::arg("name"),
+             py::arg("factory"))
+        .def("has", &CrossoverRegistry::has, py::arg("name"))
+        .def("create", &CrossoverRegistry::create, py::arg("name"))
+        .def("names", &CrossoverRegistry::names);
+
+    using MutationRegistry = ga::plugin::Registry<MutationOperator>;
+    py::class_<MutationRegistry>(m, "MutationRegistry", "Registry of mutation operator factories")
+        .def(py::init<>())
+        .def("register_factory",
+             [](MutationRegistry& self, const std::string& name, py::function factory) {
+                 py::object f = std::move(factory);
+                 self.registerFactory(name, [f]() mutable {
+                     py::gil_scoped_acquire acquire;
+                     py::object created = f();
+                     return created.cast<std::unique_ptr<MutationOperator>>();
+                 });
+             },
+             py::arg("name"),
+             py::arg("factory"))
+        .def("has", &MutationRegistry::has, py::arg("name"))
+        .def("create", &MutationRegistry::create, py::arg("name"))
+        .def("names", &MutationRegistry::names);
 
     // ------------------------------------------------------- Operator factories
     m.def("make_gaussian_mutation", &ga::makeGaussianMutation,

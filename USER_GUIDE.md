@@ -16,8 +16,8 @@ For features not yet exposed in the Python bindings, an explicit note is include
 | 1 | [Quick Start](#1-quick-start) | ✅ | ✅ |
 | 2 | [Configuration (`Config`, `Bounds`)](#2-configuration) | ✅ | ✅ |
 | 3 | [Chromosome Representations](#3-chromosome-representations) | ✅ | ✅ (all genome types) |
-| 4 | [Crossover Operators](#4-crossover-operators) | ✅ | ⚠️ 2 factory operators exposed |
-| 5 | [Mutation Operators](#5-mutation-operators) | ✅ | ⚠️ 2 factory operators exposed |
+| 4 | [Crossover Operators](#4-crossover-operators) | ✅ | ✅ (operator classes exposed) |
+| 5 | [Mutation Operators](#5-mutation-operators) | ✅ | ✅ (operator classes exposed) |
 | 6 | [Selection Operators](#6-selection-operators) | ✅ | ⚠️ helper functions exposed |
 | 7 | [Core GA Run and Results](#7-core-ga-run-and-results) | ✅ | ✅ |
 | 8 | [High-Level Optimizer API](#8-high-level-optimizer-api) | ✅ | ✅ |
@@ -36,7 +36,7 @@ For features not yet exposed in the Python bindings, an explicit note is include
 | 21 | [Checkpointing](#21-checkpointing) | ✅ | ✅ |
 | 22 | [Experiment Tracking](#22-experiment-tracking) | ✅ | ✅ |
 | 23 | [Visualization and CSV Export](#23-visualization-and-csv-export) | ✅ | ✅ |
-| 24 | [Plugin Architecture](#24-plugin-architecture) | ✅ | ❌ not exposed |
+| 24 | [Plugin Architecture](#24-plugin-architecture) | ✅ | ✅ (`CrossoverRegistry`, `MutationRegistry`) |
 | 25 | [Benchmark Suite](#25-benchmark-suite) | ✅ | ✅ (`BenchmarkConfig`, `GABenchmark`) |
 | 26 | [C API](#26-c-api) | ✅ | N/A (C only) |
 | 27 | [Reproducibility Controls](#27-reproducibility-controls) | ✅ | ✅ |
@@ -90,7 +90,7 @@ cmake --build .
 ### Python
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 def sphere(x):
     return 1000.0 / (1.0 + sum(xi**2 for xi in x))
@@ -134,7 +134,7 @@ cfg.seed           = 42;      // 0 = random seed
 ### Python
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.Config()
 cfg.population_size = 60
@@ -177,7 +177,7 @@ std::cout << genome.encodingName() << "\n"; // "vector<double>"
 `ga.GeneticAlgorithm` operates on real-valued gene vectors internally.
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # Direct construction
 g = ga.VectorGenome([0.1, -0.5, 0.3])
@@ -206,22 +206,28 @@ std::cout << genome.encodingName() << "\n"; // "vector<int>"
 
 #### Python
 
-> **Not available in Python bindings.**
-> `VectorGenome<int>` (integer variant) is not separately exposed to Python.
-> The Python `ga.GeneticAlgorithm` operates on real-valued (`double`) gene
-> vectors. As a workaround, round real-valued genes to integers inside your
-> fitness function:
->
-> ```python
-> def int_fitness(x):
->     genes = [round(xi) for xi in x]  # convert on the fly
->     return some_objective(genes)
->
-> cfg = ga.Config()
-> cfg.bounds = ga.Bounds(0, 9)   # integer domain via real bounds
-> engine = ga.GeneticAlgorithm(cfg)
-> result = engine.run(int_fitness)
-> ```
+`VectorGenome<int>` is exposed as `ga.VectorGenomeInt`.
+
+Note: the built-in `ga.GeneticAlgorithm` still operates on real-valued (`double`)
+gene vectors (`list[float]`). If you want to optimize integer-valued solutions
+with `ga.GeneticAlgorithm`, round real-valued genes to integers inside your
+fitness function:
+
+```python
+import genetic_algorithm_lib as ga
+
+g = ga.VectorGenomeInt([0, 3, 7, 2, 5])
+print(g.encoding_name())  # "vector<int>"
+
+def int_fitness(x):
+    genes = [round(xi) for xi in x]  # convert on the fly
+    return some_objective(genes)
+
+cfg = ga.Config()
+cfg.bounds = ga.Bounds(0, 9)   # integer domain via real bounds
+engine = ga.GeneticAlgorithm(cfg)
+result = engine.run(int_fitness)
+```
 
 ### 3.3 Binary (BitsetGenome / VectorGenome\<int\> with {0,1} bounds)
 
@@ -244,7 +250,7 @@ echo -e "binary\nuniform\nbit_flip\ntournament" | ./build/bin/simple_ga_test
 `ga.BitsetGenome` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # Create from a list of bools
 b = ga.BitsetGenome([True, False, True, True, False])
@@ -279,7 +285,7 @@ echo -e "permutation\norder_crossover\nswap\ntournament" | ./build/bin/simple_ga
 `ga.PermutationGenome` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # From a list
 p = ga.PermutationGenome([0, 4, 2, 1, 3])
@@ -310,7 +316,7 @@ std::cout << sg.encodingName() << "\n"; // "set<int>"
 `ga.SetGenome` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 sg = ga.SetGenome({1, 3, 5, 7})
 print(sg.values)           # {1, 3, 5, 7}
@@ -330,7 +336,7 @@ std::cout << mg.encodingName() << "\n"; // "map<string, double>"
 `ga.MapGenome` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 mg = ga.MapGenome({"x": 1.0, "y": -0.5})
 print(mg.values)            # {"x": 1.0, "y": -0.5}
@@ -357,7 +363,7 @@ std::cout << nd.encodingName() << "\n"; // "ndarray<float>"
 `ga.NdArrayGenome` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 nd = ga.NdArrayGenome(3, 3)   # 3×3 grid, initialised to 0.0
 nd.set(0, 0, 1.5)
@@ -411,12 +417,13 @@ auto [child1, child2] = xover->cross(parent1.genes, parent2.genes);
 
 ### 4.2 Python — exposed operators
 
-Only **one-point** and **two-point** crossover factory functions are exposed.
-All other crossover operators (Blend, SBX, Arithmetic, permutation-specific, etc.)
-are not individually accessible from Python.
+All crossover operator classes are exposed in Python (for example:
+`ga.BlendCrossover`, `ga.SimulatedBinaryCrossover`, `ga.OrderCrossover`, ...).
+The `make_*` factories remain available for the original one-point / two-point
+operators.
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.Config()
 cfg.population_size = 50
@@ -426,16 +433,20 @@ cfg.bounds          = ga.Bounds(-5.12, 5.12)
 
 engine = ga.GeneticAlgorithm(cfg)
 
-# Default: built-in crossover; override with a factory:
-engine.set_crossover_operator(ga.make_one_point_crossover(seed=42))
-# or
-engine.set_crossover_operator(ga.make_two_point_crossover(seed=42))
+# Real-valued crossover (usable with ga.GeneticAlgorithm)
+engine.set_crossover_operator(ga.BlendCrossover(alpha=0.5, seed=42))
+
+# Or keep using the convenience factories:
+# engine.set_crossover_operator(ga.make_one_point_crossover(seed=42))
+# engine.set_crossover_operator(ga.make_two_point_crossover(seed=42))
 
 result = engine.run(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x)))
 ```
 
-> **Python note:** Blend (BLX-α), SBX, Arithmetic, and all permutation-specific
-> crossovers are **not available as Python factory functions**.
+> **Python note:** Some crossover operators are representation-specific.
+> Permutation crossovers expose `crossover_perm(...)`, and k-ary crossovers
+> (like `UniformKVectorCrossover`) expose `crossover_*` methods that accept a
+> list of parents.
 
 ---
 
@@ -475,12 +486,14 @@ mut->mutate(individual.genes);
 
 ### 5.2 Python — exposed operators
 
-Only **Gaussian** and **Uniform** mutation factory functions are exposed.
-All other mutation operators (Bit-flip, Swap, Insert, Scramble, Inversion,
-Creep, Random-resetting, Self-adaptive) are not individually accessible from Python.
+All mutation operator classes are exposed in Python.
+
+For `ga.GeneticAlgorithm` (real-valued genes), the compatible mutation operators
+are `ga.GaussianMutation` and `ga.UniformMutation` (and the original
+`make_*_mutation` factory helpers).
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.Config()
 cfg.population_size = 50
@@ -490,18 +503,17 @@ cfg.bounds          = ga.Bounds(-5.12, 5.12)
 
 engine = ga.GeneticAlgorithm(cfg)
 
-# Gaussian mutation
-engine.set_mutation_operator(ga.make_gaussian_mutation(seed=42))
-# or Uniform mutation
-engine.set_mutation_operator(ga.make_uniform_mutation(seed=0))
+# Gaussian mutation (class or factory)
+engine.set_mutation_operator(ga.GaussianMutation(seed=42))
+# engine.set_mutation_operator(ga.make_gaussian_mutation(seed=42))
 
 result = engine.run(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x)))
 print("Best:", result.best_fitness)
 ```
 
-> **Python note:** Bit-flip, Swap, Insert, Scramble, Inversion, Creep,
-> Random-resetting, and Self-adaptive mutations are
-> **not available as Python factory functions**.
+> **Python note:** Representation-specific mutations are exposed as Python
+> classes with explicit method names (for example, `BitFlipMutation.mutate_bits`,
+> `SwapMutation.mutate_perm`, `RandomResettingMutation.mutate_int`).
 
 ---
 
@@ -556,7 +568,7 @@ selected indices:
 - `ga.selection_elitism_indices(fitness, elite_count)`
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 fitness = [0.1, 0.8, 0.4, 1.2, 0.6]
 
@@ -618,7 +630,7 @@ int main() {
 ### Python
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 import math
 
 def rastrigin(x):
@@ -711,7 +723,7 @@ int main() {
 Both `ga.Optimizer` (fluent facade) and `ga.OptimizerBuilder` are exposed.
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # --- Fluent Optimizer ---
 cfg = ga.Config()
@@ -825,7 +837,7 @@ auto distances = nsga2.crowdingDistance(pop, fronts[0]);
 ### 9.3 Python — objective-space utilities
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # Sample objective vectors (2 objectives, minimization)
 objectives = [
@@ -888,7 +900,7 @@ int main() {
 ### 10.2 Python — reference points and selection
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # Generate 15 reference points (3 objectives, 4 divisions)
 refs = ga.nsga3_reference_points(3, 4)
@@ -966,7 +978,7 @@ int main() {
 `ga.Spea2` objective-space utilities are fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # Sample 4 objective vectors (2 objectives, minimization)
 objectives = [
@@ -1016,7 +1028,7 @@ ga::moea::MoCmaEs moea;
 `ga.MoCmaEs` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cma_cfg = ga.CmaEsConfig()
 cma_cfg.dimension       = 2
@@ -1081,7 +1093,7 @@ int main() {
 `ga.EvolutionStrategy` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.EvolutionStrategyConfig()
 cfg.mu           = 10     # parents
@@ -1143,7 +1155,7 @@ int main() {
 `ga.DiagonalCmaEs` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.CmaEsConfig()
 cfg.dimension       = 10
@@ -1228,7 +1240,7 @@ int main() {
 `ga.TreeBuilder`, and `ga.ADFPool` are all fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # --- Define primitives ---
 plus = ga.Primitive()
@@ -1306,7 +1318,7 @@ int main() {
 `ga.AdaptiveRates` and `ga.AdaptiveRateController` are fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # min_mutation, max_mutation, min_crossover, max_crossover
 controller = ga.AdaptiveRateController(0.01, 0.30, 0.50, 0.95)
@@ -1367,7 +1379,7 @@ int main() {
 `ga.HybridOptimizer` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.Config()
 cfg.population_size = 50
@@ -1439,7 +1451,7 @@ int main() {
 `ga.ConstraintSet` and related helpers are fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cs = ga.ConstraintSet()
 
@@ -1546,7 +1558,7 @@ Python exposes thread-parallel evaluators directly:
 - plus optimizer-level threading via `ga.Optimizer.with_threads(...)`
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 def sphere(x):
     return 1000.0 / (1.0 + sum(xi * xi for xi in x))
@@ -1625,7 +1637,7 @@ int main() {
 `ga.CoevolutionConfig` and `ga.CoevolutionEngine` are fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.CoevolutionConfig()
 cfg.generations = 100
@@ -1697,7 +1709,7 @@ int main() {
 ### Python
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 # --- Build state from a completed run ---
 cfg = ga.Config()
@@ -1711,8 +1723,8 @@ engine = ga.GeneticAlgorithm(cfg)
 result = engine.run(lambda x: 1000.0 / (1.0 + sum(xi**2 for xi in x)))
 
 state = ga.CheckpointState()
-state.config     = cfg
-state.result     = result
+state.config = cfg
+state.result = result
 state.generation = cfg.generations - 1
 state.rng_state  = "py-run"
 
@@ -1775,7 +1787,7 @@ int main() {
 `ga.ExperimentTracker` is fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.Config()
 cfg.population_size = 60
@@ -1839,7 +1851,7 @@ int main() {
 `ga.export_diversity_csv` are fully exposed:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.Config()
 cfg.population_size = 50
@@ -1878,10 +1890,10 @@ Register custom operators at runtime by string key.
 #include <iostream>
 
 // Custom crossover implementing the standard interface
-class MyXover : public BaseCrossover {
+class MyXover : public CrossoverOperator {
 public:
-    std::pair<std::vector<double>, std::vector<double>>
-    cross(const std::vector<double>& p1, const std::vector<double>& p2) override {
+    std::pair<RealVector, RealVector>
+    crossover(const RealVector& p1, const RealVector& p2) override {
         // simple copy swap at midpoint
         size_t mid = p1.size() / 2;
         auto c1 = p1; auto c2 = p2;
@@ -1891,9 +1903,9 @@ public:
 };
 
 int main() {
-    ga::plugin::Registry<BaseCrossover> xoverRegistry;
+    ga::plugin::Registry<CrossoverOperator> xoverRegistry;
     xoverRegistry.registerFactory("my_xover",
-        []() -> std::unique_ptr<BaseCrossover> {
+        []() -> std::unique_ptr<CrossoverOperator> {
             return std::make_unique<MyXover>();
         }
     );
@@ -1906,9 +1918,32 @@ int main() {
 
 ### Python
 
-> **Not available in Python bindings yet.**
-> The plugin registry is implemented in `include/ga/plugin/registry.hpp`
-> (C++ only).
+The plugin registry is exposed in Python as:
+
+- `ga.CrossoverRegistry`
+- `ga.MutationRegistry`
+
+Example:
+
+```python
+import genetic_algorithm_lib as ga
+
+xreg = ga.CrossoverRegistry()
+xreg.register_factory("blend", lambda: ga.BlendCrossover(alpha=0.5, seed=42))
+
+cfg = ga.Config()
+cfg.population_size = 30
+cfg.generations = 50
+cfg.dimension = 6
+cfg.bounds = ga.Bounds(-1.0, 1.0)
+
+engine = ga.GeneticAlgorithm(cfg)
+engine.set_crossover_operator(xreg.create("blend"))
+result = engine.run(lambda x: 1000.0 / (1.0 + sum(v * v for v in x)))
+
+print("Available crossovers:", xreg.names())
+print("Best:", result.best_fitness)
+```
 
 ---
 
@@ -1958,7 +1993,7 @@ The benchmark suite is exposed in Python through `ga.BenchmarkConfig` and
 `ga.GABenchmark`:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.BenchmarkConfig()
 cfg.warmup_iterations = 1
@@ -2034,7 +2069,7 @@ int main(void) {
 ### Python
 
 > The C API is a **C-only interface** and is not exposed to Python.
-> Use the native Python bindings (`import ga`) instead.
+> Use the native Python bindings (`import genetic_algorithm_lib as ga`) instead.
 
 ---
 
@@ -2064,7 +2099,7 @@ assert(r1.bestFitness == r2.bestFitness);
 ### Python
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 def my_fitness(x):
     return 1000.0 / (1.0 + sum(xi**2 for xi in x))
@@ -2105,7 +2140,7 @@ cmake --build . --target ga_python_module -j$(nproc)
 export PYTHONPATH="$(pwd)/python:$PYTHONPATH"
 
 # 4. Test import
-python3 -c "import ga; print(ga.__doc__)"
+python3 -c "import genetic_algorithm_lib as ga; print(ga.__doc__)"
 ```
 
 Run the bundled Python example:
@@ -2134,6 +2169,40 @@ python3 python/example.py
 | `ga.make_two_point_crossover` | Factory: two-point crossover |
 | `ga.make_gaussian_mutation` | Factory: Gaussian mutation |
 | `ga.make_uniform_mutation` | Factory: Uniform mutation |
+| **Operators** | |
+| `ga.CrossoverOperator` | Base class for crossover operators |
+| `ga.MutationOperator` | Base class for mutation operators |
+| `ga.CrossoverRegistry` | Plugin registry for crossover operator factories |
+| `ga.MutationRegistry` | Plugin registry for mutation operator factories |
+| `ga.OnePointCrossover` | Crossover operator class (supports `crossover_real/bits/int`) |
+| `ga.TwoPointCrossover` | Crossover operator class (supports `crossover_real/bits/int`) |
+| `ga.UniformCrossover` | Crossover operator class (supports `crossover_real/bits/int`) |
+| `ga.MultiPointCrossover` | Crossover operator class (supports `crossover_real/bits/int`) |
+| `ga.BlendCrossover` | Crossover operator class (supports `crossover_real`) |
+| `ga.SimulatedBinaryCrossover` | Crossover operator class (supports `crossover_real`) |
+| `ga.LineRecombination` | Crossover operator class (supports `crossover_real`) |
+| `ga.IntermediateRecombination` | Crossover operator class (supports `crossover_real`) |
+| `ga.DifferentialEvolutionCrossover` | Crossover operator class (supports `perform_crossover`) |
+| `ga.UniformKVectorCrossover` | K-ary crossover over multiple parents (`crossover_*` over a list) |
+| `ga.OrderCrossover` | Permutation crossover (`crossover_perm`) |
+| `ga.PartiallyMappedCrossover` | Permutation crossover (`crossover_perm`) |
+| `ga.CycleCrossover` | Permutation crossover (`crossover_perm`) |
+| `ga.CutAndCrossfillCrossover` | Permutation crossover (`crossover_perm`) |
+| `ga.EdgeCrossover` | Permutation crossover (`crossover_perm`) |
+| `ga.DiploidRecombination` | Diploid crossover (`crossover_diploid`) |
+| `ga.MutationStats` | Mutation statistics record |
+| `ga.GaussianMutation` | Mutation operator class (`mutate_real`) |
+| `ga.UniformMutation` | Mutation operator class (`mutate_real`) |
+| `ga.BitFlipMutation` | Bitstring mutation (`mutate_bits`, `mutate_string`) |
+| `ga.RandomResettingMutation` | Integer mutation (`mutate_int`) |
+| `ga.CreepMutation` | Integer mutation (`mutate_int`) |
+| `ga.SwapMutation` | Permutation mutation (`mutate_perm`) |
+| `ga.InversionMutation` | Permutation mutation (`mutate_perm`) |
+| `ga.InsertMutation` | Permutation mutation (`mutate_perm`) |
+| `ga.ScrambleMutation` | Permutation mutation (`mutate_perm`) |
+| `ga.ListMutation` | Variable-length list mutation (`mutate_list`) |
+| `ga.SelfAdaptiveIndividual` | Self-adaptive ES individual (genes + sigma) |
+| `ga.SelfAdaptiveMutation` | Self-adaptive mutation (`mutate`) |
 | **Evaluation** | |
 | `ga.ParallelEvaluator` | Threaded batch evaluator over candidate vectors |
 | `ga.LocalDistributedExecutor` | Threaded distributed executor over candidate batches |
@@ -2151,6 +2220,7 @@ python3 python/example.py
 | `ga.GABenchmark` | Run benchmark suite and export reports/CSV |
 | **Representations** | |
 | `ga.VectorGenome` | Real-valued genome (`double`) |
+| `ga.VectorGenomeInt` | Integer-valued genome (`int`) |
 | `ga.BitsetGenome` | Binary/bitset genome |
 | `ga.PermutationGenome` | Permutation genome with ordering utilities |
 | `ga.SetGenome` | Set-based genome |

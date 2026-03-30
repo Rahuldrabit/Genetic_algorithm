@@ -5,9 +5,14 @@ from __future__ import annotations
 import os
 import sys
 
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), "..", "build", "python"))
-
-import ga
+try:
+    import genetic_algorithm_lib as ga
+except ImportError:
+    # Allow running from the source tree after a local CMake build.
+    repo_root = os.path.join(os.path.dirname(__file__), "..")
+    sys.path.insert(0, os.path.join(repo_root, "python"))
+    sys.path.insert(0, os.path.join(repo_root, "build", "python"))
+    import genetic_algorithm_lib as ga
 
 
 def sphere_fitness(x: list[float]) -> float:
@@ -26,6 +31,7 @@ def main() -> None:
     ind.age = 1
 
     assert ga.VectorGenome([0.1, 0.2]).encoding_name() == "vector<double>"
+    assert ga.VectorGenomeInt([1, 2, 3]).encoding_name() == "vector<int>"
     assert ga.BitsetGenome([True, False]).size() == 2
     assert ga.PermutationGenome([2, 0, 1]).is_valid()
     assert ga.SetGenome({1, 2}).encoding_name() == "set<int>"
@@ -120,6 +126,43 @@ def main() -> None:
     assert len(sus_idx) <= 3
     elite_idx = ga.selection_elitism_indices(fitness, elite_count=2)
     assert len(elite_idx) == 2 and all(0 <= i < len(fitness) for i in elite_idx)
+
+    # Operator classes + plugin registries
+    p1 = [0.1, -0.2, 0.3, -0.4]
+    p2 = [0.5, -0.6, 0.7, -0.8]
+    c1, c2 = ga.BlendCrossover(alpha=0.5, seed=42).crossover_real(p1, p2)
+    assert len(c1) == len(p1) and len(c2) == len(p2)
+
+    perm1 = [0, 1, 2, 3, 4, 5]
+    perm2 = [5, 4, 3, 2, 1, 0]
+    o1, o2 = ga.OrderCrossover(seed=42).crossover_perm(perm1, perm2)
+    assert sorted(o1) == sorted(perm1) and sorted(o2) == sorted(perm2)
+
+    bits = [True, False, True, False]
+    bits2 = ga.BitFlipMutation(seed=42).mutate_bits(bits, pm=0.5)
+    assert len(bits2) == len(bits)
+
+    ints = [0, 1, 2, 3, 4]
+    ints2 = ga.RandomResettingMutation(seed=42).mutate_int(ints, pm=0.5, min_val=-2, max_val=2)
+    assert len(ints2) == len(ints)
+
+    # Registry: create operators by string key
+    xreg = ga.CrossoverRegistry()
+    xreg.register_factory("blend", lambda: ga.BlendCrossover(alpha=0.25, seed=7))
+    mreg = ga.MutationRegistry()
+    mreg.register_factory("gauss", lambda: ga.make_gaussian_mutation(seed=7))
+
+    cfg2 = ga.Config()
+    cfg2.population_size = 10
+    cfg2.generations = 5
+    cfg2.dimension = 4
+    cfg2.bounds = ga.Bounds(-1.0, 1.0)
+    cfg2.seed = 7
+    engine2 = ga.GeneticAlgorithm(cfg2)
+    engine2.set_crossover_operator(xreg.create("blend"))
+    engine2.set_mutation_operator(mreg.create("gauss"))
+    r2 = engine2.run(sphere_fitness)
+    assert len(r2.best_genes) == 4
 
     # Benchmark suite
     bcfg = ga.BenchmarkConfig()

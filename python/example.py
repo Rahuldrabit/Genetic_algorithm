@@ -4,14 +4,20 @@ Minimal Python example for the Genetic Algorithm framework.
 Optimises the Rastrigin function (minimisation → maximisation via 1000/(1+f)).
 Global minimum is at origin where f=0, giving fitness ≈ 1000.
 """
+from __future__ import annotations
+
 import math
 import sys
 import os
 
-# Add the build directory to the path so Python can find the 'ga' module
-sys.path.insert(0, os.path.join(os.path.dirname(__file__), '..', 'build', 'python'))
-
-import ga  # C++ extension module
+try:
+    import genetic_algorithm_lib as ga
+except ImportError:
+    # Allow running from the source tree after a local CMake build.
+    repo_root = os.path.join(os.path.dirname(__file__), "..")
+    sys.path.insert(0, os.path.join(repo_root, "python"))
+    sys.path.insert(0, os.path.join(repo_root, "build", "python"))
+    import genetic_algorithm_lib as ga
 
 
 def rastrigin_fitness(x: list[float]) -> float:

@@ -1,6 +1,7 @@
 # Python Bindings Guide
 
-This repository provides a Python extension module named `ga` built from `python/ga_bindings.cpp`.
+This repository provides a Python package named `genetic_algorithm_lib` backed by a compiled
+extension module (`_core`) built from `python/ga_bindings.cpp`.
 
 ## Build
 
@@ -31,7 +32,7 @@ python3 -m pip install -e .
 Then import directly:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 ```
 
 ## Example
@@ -66,6 +67,7 @@ Use `environmental_select_indices` when you want selected indices back into your
 The bindings now also expose these public framework APIs:
 
 - Core/representations: `Evaluation`, `Individual`, `IGenome`, `VectorGenome`, `BitsetGenome`, `PermutationGenome`, `SetGenome`, `MapGenome`, `NdArrayGenome`, `TreeGenome`
+- Operators + plugin registries: `CrossoverOperator`, `MutationOperator`, concrete crossover/mutation operators (e.g. `BlendCrossover`, `OrderCrossover`, `BitFlipMutation`, ...), plus `CrossoverRegistry` and `MutationRegistry`
 - GP helpers: `ValueType`, `Signature`, `Primitive`, `Node`, `TreeBuilder`, `ADFPool`
 - Optimizer APIs: `Optimizer`, `OptimizerBuilder`, `MultiObjectiveResult`, `OptimizationResult`
 - Advanced algorithms: `Spea2`, `EvolutionStrategy`, `DiagonalCmaEs`, `MoCmaEs`
@@ -85,7 +87,7 @@ The bindings now also expose these public framework APIs:
 Minimal usage:
 
 ```python
-import ga
+import genetic_algorithm_lib as ga
 
 cfg = ga.Config()
 res = ga.Result()

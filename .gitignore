@@ -1,4 +1,7 @@
 build/
+.scikit-build/
+_skbuild/
+.venv/
 __pycache__/
 *.pyc
 *.pyo
@@ -6,6 +9,7 @@ __pycache__/
 *.egg-info/
 dist/
 .eggs/
+.pytest_cache/
 # Benchmark and test result files
 benchmark_results.*
 ga_results.txt
