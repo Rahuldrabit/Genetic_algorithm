@@ -70,7 +70,6 @@ jobs:
     needs: [build_wheels, build_sdist]
     runs-on: ubuntu-latest
     permissions:
-      id-token: write
       contents: read
 
     steps:
@@ -80,7 +79,35 @@ jobs:
           path: dist
           merge-multiple: true
 
-      - name: Publish to PyPI
-        uses: pypa/gh-action-pypi-publish@release/v1
+      - name: Set up Python
+        uses: actions/setup-python@v5
         with:
-          packages-dir: dist
+          python-version: "3.12"
+
+      - name: Inspect distributions
+        run: |
+          set -euo pipefail
+          find dist -type f -print
+
+      - name: Install packaging tools
+        run: |
+          python -m pip install --upgrade pip build twine
+
+      - name: Validate distribution metadata
+        run: |
+          set -euo pipefail
+          mapfile -t ARTIFACTS < <(find dist -type f \( -name "*.whl" -o -name "*.tar.gz" -o -name "*.zip" \) | sort)
+          if [ ${#ARTIFACTS[@]} -eq 0 ]; then
+            echo "No distributions found under dist/"
+            exit 1
+          fi
+          python -m twine check "${ARTIFACTS[@]}"
+
+      - name: Publish to PyPI
+        env:
+          TWINE_USERNAME: __token__
+          TWINE_PASSWORD: ${{ secrets.PYPI_API_TOKEN }}
+        run: |
+          set -euo pipefail
+          mapfile -t ARTIFACTS < <(find dist -type f \( -name "*.whl" -o -name "*.tar.gz" -o -name "*.zip" \) | sort)
+          python -m twine upload --non-interactive --skip-existing "${ARTIFACTS[@]}"
