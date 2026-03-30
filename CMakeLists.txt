@@ -5,11 +5,6 @@ project(GeneticAlgorithm VERSION 1.0.0 LANGUAGES CXX)
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
 
-# Set compiler flags
-set(CMAKE_CXX_FLAGS "${CMAKE_CXX_FLAGS} -Wall -Wextra")
-set(CMAKE_CXX_FLAGS_RELEASE "-O3")
-set(CMAKE_CXX_FLAGS_DEBUG "-g -O0")
-
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/include)
@@ -37,6 +32,13 @@ target_include_directories(genetic_algorithm PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 set_target_properties(genetic_algorithm PROPERTIES OUTPUT_NAME "genetic_algorithm")
+
+# Warnings: keep them compiler-appropriate (avoid injecting GCC/Clang flags into MSVC).
+if(MSVC)
+    target_compile_options(genetic_algorithm PRIVATE /W4)
+else()
+    target_compile_options(genetic_algorithm PRIVATE -Wall -Wextra)
+endif()
 
 if(NOT SKBUILD)
     # Main executable
@@ -163,9 +165,12 @@ endif()
 # ---------------------------------------------------------------- Python bindings
 # When building a Python wheel (SKBUILD=ON), Python bindings are required.
 if(SKBUILD)
-    find_package(Python3 REQUIRED COMPONENTS Interpreter Development)
+    # Manylinux Python distributions used by cibuildwheel do not ship libpython
+    # (Development.Embed / Python3_LIBRARIES). For extension modules we only
+    # need headers + module build info.
+    find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
 else()
-    find_package(Python3 COMPONENTS Interpreter Development QUIET)
+    find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
 endif()
 
 # Try to locate pybind11 via its CMake config (installed via pip or system).
@@ -195,6 +200,13 @@ if(Python3_FOUND AND pybind11_FOUND)
     target_sources(ga_python_module PRIVATE benchmark/ga_benchmark.cc)
     target_link_libraries(ga_python_module PRIVATE genetic_algorithm)
     target_include_directories(ga_python_module PRIVATE ${CMAKE_SOURCE_DIR}/include)
+
+    if(MSVC)
+        target_compile_options(ga_python_module PRIVATE /W4)
+    else()
+        target_compile_options(ga_python_module PRIVATE -Wall -Wextra)
+    endif()
+
     set_target_properties(ga_python_module PROPERTIES
         OUTPUT_NAME "_core"
         LIBRARY_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/python"
