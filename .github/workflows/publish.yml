@@ -8,6 +8,10 @@ on:
     types: [published]
   workflow_dispatch:
 
+env:
+  # Opt into Node.js 24 for all actions to avoid Node.js 20 deprecation warnings.
+  FORCE_JAVASCRIPT_ACTIONS_TO_NODE24: true
+
 jobs:
   build_wheels:
     name: Build wheels (${{ matrix.os }})
@@ -27,7 +31,9 @@ jobs:
           python-version: "3.12"
 
       - name: Build wheels
-        uses: pypa/cibuildwheel@v2.19.2
+        # v2.22.0 ships updated manylinux/musllinux image digests, fixing the
+        # broken quay.io/pypa/manylinux2014_x86_64:2024.07.02-0 tag used by v2.19.2.
+        uses: pypa/cibuildwheel@v2.22.0
         env:
           CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
           CIBW_SKIP: "pp* *-musllinux_*"
