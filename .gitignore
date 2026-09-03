@@ -1,4 +1,5 @@
 build/
+/build-*/
 .scikit-build/
 _skbuild/
 .venv/

@@ -36,14 +36,26 @@ This report documents the comprehensive analysis and testing of the genetic algo
    - Co-evolution Engine: PASS
    - Integration Test (all features together): PASS
 
+8. **representations-core-sanity** - Representations and core abstractions: PASS
+
+9. **metaheuristics-sanity** - New optimization suite: PASS
+   - Seven PSO families: PASS
+   - Five graph ACO variants and continuous ACOR: PASS
+   - GSA: PASS
+   - Fuzzy C-means and fuzzy adaptive control: PASS
+   - GA/PSO solution-transfer pipeline: PASS
+   - Exact evaluation accounting and no-elitism best retention: PASS
+
 ### Examples (All Working)
 - **ga-minimal**: Basic single-objective GA - Working
 - **ga-nsga2-minimal**: Multi-objective NSGA-II - Working
 - **ga-optimizer-minimal**: High-level optimizer API - Working
+- **ga-metaheuristics-minimal**: Fuzzy-controlled GA/PSO/ACOR pipeline - Working
 
 ### Benchmark Suite (All Working)
 - **Operators Benchmark**: Performance testing of all operators - Working
 - **Functions Benchmark**: Optimization of test functions (Sphere, Rastrigin, Ackley, Schwefel, Rosenbrock) - Working
+- **Metaheuristics Benchmark**: PSO family, ACOR, and GSA timing/evaluation comparison - Working
 - All benchmarks complete successfully and generate reports
 
 ## Implementation Status by Feature
@@ -65,6 +77,20 @@ This report documents the comprehensive analysis and testing of the genetic algo
   - 19 Crossover operators in `crossover/`
   - 11 Mutation operators in `mutation/`
   - 6 Selection operators in `selection-operator/`
+
+### ✅ Metaheuristics Suite
+- **Particle Swarm Optimization** (`include/ga/pso/`, `src/pso/`)
+  - Global-best, ring local-best, constriction, bare-bones, fully informed,
+    quantum-behaved, and binary variants
+- **Ant Colony Optimization** (`include/ga/aco/`, `src/aco/`)
+  - Ant System, Elitist AS, Rank-Based AS, ACS, MAX-MIN AS, and continuous ACOR
+- **Gravitational Search** (`include/ga/gsa/`, `src/gsa/`)
+  - Continuous GSA with decreasing K-best interaction
+- **Fuzzy support** (`include/ga/fuzzy/`, `src/fuzzy/`)
+  - Standalone fuzzy C-means and a reusable Sugeno adaptive controller
+- **Composition** (`include/ga/metaheuristics/`, `include/ga/hybrid/`)
+  - Common continuous-optimizer contract, GA adapter, and sequential
+    solution-transfer pipeline
 
 ### ✅ Multi-Objective Optimization (100% Complete)
 - **NSGA-II** (`src/algorithms/moea/nsga2.cpp`)
@@ -208,7 +234,7 @@ This report documents the comprehensive analysis and testing of the genetic algo
 ## Code Quality Metrics
 
 ### Test Coverage
-- **7 Comprehensive Test Suites**: All passing
+- **9 Comprehensive Test Suites**: All passing
 - **37,000+ lines** of test code across all test files
 - **35+ operators** individually tested
 - **All advanced features** have dedicated tests
@@ -283,7 +309,7 @@ The genetic algorithm library is feature-complete according to the FEATURE_CHECK
 - Co-evolution framework
 - All integration scenarios
 
-**Total Test Status: 7/7 test suites passing, 0 failures**
+**Total Test Status: 9/9 test suites passing, 0 failures**
 
 The library now has:
 - ✅ Production-ready code quality

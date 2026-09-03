@@ -1,8 +1,9 @@
 #pragma once
 
-#include <vector>
-#include <string>
+#include <cstddef>
 #include <functional>
+#include <string>
+#include <vector>
 
 namespace ga {
 
@@ -33,8 +34,10 @@ struct Config {
 struct Result {
     std::vector<double> bestGenes;
     double bestFitness = -1e300;
-    std::vector<double> bestHistory; // best per generation
+    std::vector<double> bestHistory; // best-so-far per generation
     std::vector<double> avgHistory;  // average per generation
+    std::size_t evaluations = 0;
+    std::size_t iterations = 0;
 };
 
 } // namespace ga

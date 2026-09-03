@@ -20,6 +20,11 @@ Legend: implemented, partial, planned
 | Checkpointing | implemented | binary + JSON checkpoint save/load manager in `include/ga/checkpoint/checkpoint.hpp` |
 | Adaptive operators | implemented | adaptive rate controller in `include/ga/adaptive/adaptive_policy.hpp` |
 | Hybrid optimization | implemented | GA+local-search hybrid pipeline in `include/ga/hybrid/hybrid_optimizer.hpp` |
+| PSO family | implemented | global/local, constriction, bare-bones, fully informed, quantum, and binary variants in `include/ga/pso/*` |
+| ACO family | implemented | five graph ACO variants plus continuous ACOR in `include/ga/aco/*` |
+| Gravitational Search (GSA) | implemented | continuous K-best GSA in `include/ga/gsa/*` |
+| Fuzzy optimization support | implemented | fuzzy C-means and shared Sugeno adaptive controller in `include/ga/fuzzy/*` |
+| Heterogeneous hybrid pipeline | implemented | common optimizer interface, GA adapter, and solution-transfer pipeline in `include/ga/metaheuristics/*` and `include/ga/hybrid/metaheuristic_pipeline.hpp` |
 | Constraint handling | implemented | hard/soft/repair constraint toolkit in `include/ga/constraints/constraints.hpp` |
 | Experiment tracking | implemented | experiment tracker with CSV export in `include/ga/tracking/experiment_tracker.hpp` |
 | Visualization support | implemented | CSV export helpers for fitness/pareto/diversity in `include/ga/visualization/export.hpp` |
@@ -411,4 +416,3 @@ public:
    - adaptive operators, hybrid local search, ergonomic optimizer API
 7. Language exports:
    - C wrapper and expanded Python bindings
-

@@ -64,6 +64,10 @@ print("History length:", len(result.best_history))
 - Benchmark suite (operator speed, function optimization, scalability)
 - Plugin-style registries (create/register operators by name in Python)
 - Optional parallel evaluation helpers
+- Interoperable PSO, graph/continuous ACO, GSA, fuzzy C-means, and fuzzy-controlled hybrid optimization
+
+See [METAHEURISTICS.md](METAHEURISTICS.md) for the supported variants, shared C++
+interface, adaptive fuzzy controller, and hybrid examples.
 
 ## Supported representations
 

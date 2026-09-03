@@ -195,6 +195,8 @@ PYBIND11_MODULE(_core, m) {
         .def_readonly("best_fitness",  &ga::Result::bestFitness,  "Fitness of the best individual")
         .def_readonly("best_history",  &ga::Result::bestHistory,  "Best fitness per generation")
         .def_readonly("avg_history",   &ga::Result::avgHistory,   "Average fitness per generation")
+        .def_readonly("evaluations",   &ga::Result::evaluations,  "Number of fitness evaluations")
+        .def_readonly("iterations",    &ga::Result::iterations,   "Number of completed generations")
         .def("__repr__", [](const ga::Result& r){
             return "<Result best_fitness=" + std::to_string(r.bestFitness) + ">";
         });
@@ -374,7 +376,11 @@ PYBIND11_MODULE(_core, m) {
         >>> print(result.best_fitness)
         )")
         .def(py::init<const ga::Config&>(), py::arg("config"))
-        .def("run", &ga::GeneticAlgorithm::run, py::arg("fitness"),
+        .def("run",
+             py::overload_cast<const ga::Fitness&,
+                               const std::vector<std::vector<double>>&>(
+                 &ga::GeneticAlgorithm::run),
+             py::arg("fitness"), py::arg("initial_solutions") = std::vector<std::vector<double>>{},
              "Run the GA with the given fitness callable (list[float] -> float). Higher is better.")
         .def("set_mutation_operator", &ga::GeneticAlgorithm::setMutationOperator,
              py::arg("op"), "Set a custom mutation operator")
