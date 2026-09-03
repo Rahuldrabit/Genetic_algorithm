@@ -244,15 +244,18 @@ inline ControlSignal controlSignal(const IAdaptiveController* controller,
                                         0.0,
                                         1.0);
     ControlSignal signal = controller->update(state);
-    auto sanitize = [](double value) {
-        return std::isfinite(value) && value > 0.0
-                   ? std::clamp(value, 0.1, 10.0)
-                   : 1.0;
-    };
-    signal.exploration = sanitize(signal.exploration);
-    signal.exploitation = sanitize(signal.exploitation);
-    signal.evaporation = sanitize(signal.evaporation);
-    signal.randomization = sanitize(signal.randomization);
+    const bool valid = std::isfinite(signal.exploration) &&
+                       signal.exploration > 0.0 &&
+                       std::isfinite(signal.exploitation) &&
+                       signal.exploitation > 0.0 &&
+                       std::isfinite(signal.evaporation) &&
+                       signal.evaporation > 0.0 &&
+                       std::isfinite(signal.randomization) &&
+                       signal.randomization > 0.0;
+    if (!valid) {
+        throw std::domain_error(
+            "adaptive controller multipliers must be finite and greater than zero");
+    }
     return signal;
 }
 

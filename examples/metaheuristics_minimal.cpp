@@ -17,7 +17,11 @@ double sphere(const std::vector<double>& x) {
 } // namespace
 
 int main() {
-    auto fuzzyController = std::make_shared<ga::fuzzy::FuzzyAdaptiveController>();
+    ga::fuzzy::FuzzyControllerConfig fuzzyConfig;
+    fuzzyConfig.improvementScale = 20.0;
+    fuzzyConfig.lowDiversityStagnant = {1.55, 0.80, 1.30, 1.45};
+    auto fuzzyController =
+        std::make_shared<ga::fuzzy::FuzzyAdaptiveController>(fuzzyConfig);
 
     ga::Config gaConfig;
     gaConfig.populationSize = 40;
@@ -33,7 +37,7 @@ int main() {
     psoConfig.search.bounds = {-5.0, 5.0};
     psoConfig.search.seed = 43;
     psoConfig.variant = ga::pso::PsoVariant::Constriction;
-    psoConfig.controller = fuzzyController;
+    psoConfig.controller = fuzzyController; // Optional; omit for fixed parameters.
 
     ga::aco::AcorConfig acorConfig;
     acorConfig.search.iterations = 40;
@@ -42,8 +46,9 @@ int main() {
     acorConfig.search.seed = 44;
     acorConfig.archiveSize = 40;
     acorConfig.sampleCount = 20;
-    acorConfig.controller = fuzzyController;
+    acorConfig.controller = fuzzyController; // Optional.
 
+    // The caller alone chooses the algorithms and their exact execution order.
     ga::hybrid::MetaheuristicPipeline hybrid;
     hybrid.add(std::make_unique<ga::metaheuristics::GeneticAlgorithmAdapter>(gaConfig))
         .add(std::make_unique<ga::pso::ParticleSwarmOptimizer>(psoConfig))

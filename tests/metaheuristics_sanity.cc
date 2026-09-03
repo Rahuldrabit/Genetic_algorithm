@@ -129,6 +129,34 @@ void testContinuousOptimizersAndFuzzyControl() {
     const auto explore = controller->update(stuck);
     CHECK(explore.exploration > 1.0 && explore.randomization > 1.0,
           "fuzzy controller did not increase exploration when stuck");
+
+    ga::fuzzy::FuzzyControllerConfig userFuzzyConfig;
+    userFuzzyConfig.lowDiversityStagnant = {12.25, 0.70, 1.40, 1.80};
+    userFuzzyConfig.lowDiversitySlow = userFuzzyConfig.lowDiversityStagnant;
+    const ga::fuzzy::FuzzyAdaptiveController userController(userFuzzyConfig);
+    ga::metaheuristics::ProgressState userState = stuck;
+    userState.normalizedDiversity = 0.0;
+    const auto userSignal = userController.update(userState);
+    CHECK(std::abs(userSignal.exploration - 12.25) < 1e-12 &&
+              std::abs(userSignal.exploitation - 0.70) < 1e-12 &&
+              std::abs(userSignal.evaporation - 1.40) < 1e-12 &&
+              std::abs(userSignal.randomization - 1.80) < 1e-12,
+          "fuzzy controller did not honor user-defined consequents");
+    const auto forwarded = ga::metaheuristics::detail::controlSignal(
+        &userController, 0, 1, 0.0, 0.0, 1);
+    CHECK(std::abs(forwarded.exploration - 12.25) < 1e-12,
+          "shared controller path changed a valid user-defined multiplier");
+
+    bool invalidRejected = false;
+    try {
+        ga::fuzzy::FuzzyControllerConfig invalidConfig;
+        invalidConfig.improvementScale = 0.0;
+        const ga::fuzzy::FuzzyAdaptiveController invalidController(invalidConfig);
+        (void)invalidController;
+    } catch (const std::invalid_argument&) {
+        invalidRejected = true;
+    }
+    CHECK(invalidRejected, "fuzzy controller accepted an invalid user configuration");
     std::cout << "[PASS] ACOR, GSA, and fuzzy control\n";
 }
 
@@ -238,7 +266,7 @@ void testHybridAndGaEvaluationEfficiency() {
     CHECK(result.stages.size() == 2, "hybrid pipeline did not run every stage");
     CHECK(result.stages[0].optimizer == "GA" &&
               result.stages[1].optimizer == "PSO-global-best",
-          "hybrid pipeline stage names are wrong");
+          "hybrid pipeline did not preserve the user-selected stage order");
     CHECK(result.combined.bestFitness >= result.stages[0].result.bestFitness,
           "hybrid pipeline lost the GA solution");
     CHECK(result.combined.evaluations == result.stages[0].result.evaluations +

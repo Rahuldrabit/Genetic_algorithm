@@ -26,6 +26,25 @@ directly minimizes edge cost.
 implements the major distinct families above; new variants can implement
 `IContinuousOptimizer` and immediately participate in the hybrid pipeline.
 
+## User-controlled design
+
+The library does not select an algorithm, construct a hybrid, reorder stages,
+or enable adaptation automatically. Each optimizer can run independently. A
+hybrid exists only when the caller creates a `MetaheuristicPipeline` and calls
+`add(...)` in the exact desired order; the pipeline preserves that order and
+only transfers solutions between those explicitly selected stages.
+
+All algorithm hyperparameters are exposed through public configuration structs.
+Their defaults are conveniences, not an automatic tuning policy. An adaptive
+controller is also opt-in: leaving `controller` unset keeps the configured
+algorithm parameters fixed. `FuzzyControllerConfig` exposes its membership
+thresholds, improvement scale, and every Sugeno rule consequent.
+
+Robustness here means validated configurations and controller outputs, bounded
+solutions, rejection of non-finite fitness values, deterministic seeded runs,
+exact evaluation accounting, and cross-platform tests. It does not mean hidden
+algorithm selection or hidden hyperparameter tuning.
+
 ## Shared continuous interface
 
 ```cpp
@@ -43,10 +62,13 @@ bounds, deterministic seed, and objective-evaluation threads. Results report the
 best solution, best/average histories, completed iterations, and exact objective
 evaluation count.
 
-## Fuzzy-controlled hybrid example
+## User-selected hybrid with optional fuzzy control
 
 ```cpp
-auto fuzzy = std::make_shared<ga::fuzzy::FuzzyAdaptiveController>();
+ga::fuzzy::FuzzyControllerConfig fuzzyCfg;
+fuzzyCfg.improvementScale = 20.0;
+fuzzyCfg.lowDiversityStagnant = {1.55, 0.80, 1.30, 1.45};
+auto fuzzy = std::make_shared<ga::fuzzy::FuzzyAdaptiveController>(fuzzyCfg);
 
 ga::Config gaCfg;
 gaCfg.dimension = 10;
@@ -56,12 +78,12 @@ ga::pso::PsoConfig psoCfg;
 psoCfg.search.dimension = 10;
 psoCfg.search.bounds = {-5.0, 5.0};
 psoCfg.variant = ga::pso::PsoVariant::Constriction;
-psoCfg.controller = fuzzy;
+psoCfg.controller = fuzzy; // Optional: omit for fixed PSO parameters.
 
 ga::aco::AcorConfig acorCfg;
 acorCfg.search.dimension = 10;
 acorCfg.search.bounds = {-5.0, 5.0};
-acorCfg.controller = fuzzy;
+acorCfg.controller = fuzzy; // Optional.
 
 ga::hybrid::MetaheuristicPipeline pipeline;
 pipeline.add(std::make_unique<ga::metaheuristics::GeneticAlgorithmAdapter>(gaCfg))
@@ -71,7 +93,9 @@ pipeline.add(std::make_unique<ga::metaheuristics::GeneticAlgorithmAdapter>(gaCfg
 auto result = pipeline.optimize(fitness);
 ```
 
-The controller observes normalized population diversity, recent improvement,
+The caller above explicitly chooses GA, then PSO, then ACOR. Removing, replacing,
+or reordering an `add(...)` call changes the hybrid accordingly. The optional
+controller observes normalized population diversity, recent improvement,
 and stagnation. It returns dimensionless exploration, exploitation, evaporation,
 and randomization multipliers. Each algorithm maps those signals to its native
 parameters. A single shared controller can therefore adapt every stage without
