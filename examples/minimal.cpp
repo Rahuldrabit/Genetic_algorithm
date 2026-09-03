@@ -3,10 +3,14 @@
 #include <cmath>
 #include "ga/genetic_algorithm.hpp"
 
+namespace {
+constexpr double kPi = 3.14159265358979323846;
+}
+
 static double rastrigin(const std::vector<double>& x) {
     const double A = 10.0;
-    double sum = A * x.size();
-    for (double xi : x) sum += xi*xi - A*std::cos(2*M_PI*xi);
+    double sum = A * static_cast<double>(x.size());
+    for (double xi : x) sum += xi*xi - A*std::cos(2*kPi*xi);
     // Convert minimization objective to maximization fitness
     double f = sum;
     return 1000.0 / (1.0 + f);

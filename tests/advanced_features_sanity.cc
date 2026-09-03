@@ -34,6 +34,7 @@
 // Test result tracking
 static int tests_passed = 0;
 static int tests_failed = 0;
+static constexpr double kPi = 3.14159265358979323846;
 
 #define TEST_ASSERT(cond, msg) \
     do { \
@@ -66,9 +67,9 @@ double sphere(const std::vector<double>& x) {
 
 double rastrigin(const std::vector<double>& x) {
     const double A = 10.0;
-    double sum = A * x.size();
+    double sum = A * static_cast<double>(x.size());
     for (double xi : x) {
-        sum += xi * xi - A * std::cos(2.0 * M_PI * xi);
+        sum += xi * xi - A * std::cos(2.0 * kPi * xi);
     }
     // Convert minimization to maximization
     return 1000.0 / (1.0 + sum);
@@ -82,7 +83,7 @@ std::vector<double> zdt1(const std::vector<double>& x) {
     for (size_t i = 1; i < x.size(); ++i) {
         g += x[i];
     }
-    g = 1.0 + 9.0 * g / (x.size() - 1);
+    g = 1.0 + 9.0 * g / static_cast<double>(x.size() - 1);
     double h = 1.0 - std::sqrt(f1 / g);
     double f2 = g * h;
     return {f1, f2};
