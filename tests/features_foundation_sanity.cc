@@ -94,6 +94,7 @@ int main() {
             throw std::runtime_error("distributed evaluator failed");
         }
 
+#if defined(__unix__) || defined(__APPLE__)
         ga::evaluation::ProcessDistributedExecutor proc_eval(
             [](const std::vector<double>& x) {
                 double s = 0.0;
@@ -108,6 +109,7 @@ int main() {
             !approx(proc_out[2], 25.0)) {
             throw std::runtime_error("process distributed evaluator failed");
         }
+#endif
 
         // ES / CMA-ES
         ga::es::EvolutionStrategy es({10, 30, 12, 5, 0.2, -2.0, 2.0, true, 11});

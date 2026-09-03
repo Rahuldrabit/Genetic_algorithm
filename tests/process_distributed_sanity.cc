@@ -25,6 +25,7 @@ int main() {
             },
             3);
 
+#if defined(__unix__) || defined(__APPLE__)
         const std::vector<std::vector<double>> batch = {
             {1.0, 2.0, 2.0},
             {3.0, 4.0},
@@ -52,6 +53,20 @@ int main() {
 
         std::cout << "[PASS] Process distributed executor sanity checks\n";
         return 0;
+#else
+        bool unsupportedRejected = false;
+        try {
+            (void)exec.execute({{1.0}});
+        } catch (const std::runtime_error&) {
+            unsupportedRejected = true;
+        }
+        if (!unsupportedRejected) {
+            throw std::runtime_error(
+                "non-POSIX process executor did not report unsupported operation");
+        }
+        std::cout << "[PASS] Process executor reports unsupported platform\n";
+        return 0;
+#endif
     } catch (const std::exception& e) {
         std::cerr << "[FAIL] " << e.what() << "\n";
         return 1;
