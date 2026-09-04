@@ -28,6 +28,8 @@ class MetaheuristicPipeline final
 public:
     MetaheuristicPipeline& add(
         std::unique_ptr<ga::metaheuristics::IContinuousOptimizer> optimizer);
+    MetaheuristicPipeline& addShared(
+        std::shared_ptr<ga::metaheuristics::IContinuousOptimizer> optimizer);
 
     std::string name() const override { return "hybrid-pipeline"; }
     ga::core::OptimizationResult optimize(
@@ -40,7 +42,7 @@ public:
     std::size_t size() const noexcept { return stages_.size(); }
 
 private:
-    std::vector<std::unique_ptr<ga::metaheuristics::IContinuousOptimizer>> stages_;
+    std::vector<std::shared_ptr<ga::metaheuristics::IContinuousOptimizer>> stages_;
 };
 
 } // namespace hybrid

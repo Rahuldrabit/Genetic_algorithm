@@ -10,6 +10,12 @@ namespace hybrid {
 
 MetaheuristicPipeline& MetaheuristicPipeline::add(
     std::unique_ptr<ga::metaheuristics::IContinuousOptimizer> optimizer) {
+    return addShared(std::shared_ptr<ga::metaheuristics::IContinuousOptimizer>(
+        std::move(optimizer)));
+}
+
+MetaheuristicPipeline& MetaheuristicPipeline::addShared(
+    std::shared_ptr<ga::metaheuristics::IContinuousOptimizer> optimizer) {
     if (!optimizer) {
         throw std::invalid_argument("cannot add a null optimizer to the hybrid pipeline");
     }

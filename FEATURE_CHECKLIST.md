@@ -34,7 +34,7 @@ Legend: implemented, partial, planned
 | Core representations (all types) | implemented | `VectorGenome`, `BitsetGenome`, `PermutationGenome`, `TreeGenome`, `SetGenome`, `MapGenome`, `NdArrayGenome` in `include/ga/representations/*` |
 | Core abstractions | implemented | `IGenome`, `Individual`, `IProblem`, `Evaluation` in `include/ga/core/*`; `Population`, `IEvaluator`, `IAlgorithm`, `OptimizationResult` added |
 | High-level API | implemented | fluent `Optimizer` API for single/multi-objective in `include/ga/api/optimizer.hpp`; `OptimizerBuilder` fluent builder in `include/ga/api/builder.hpp` |
-| C and Python export path | implemented | Python bindings (`python/ga_bindings.cpp`); C ABI wrapper (`include/ga/c_api.h`, `src/c_api.cpp`) |
+| C and Python export path | implemented | Python bindings include PSO/ACO/ACOR/GSA/fuzzy/user-defined pipelines (`python/ga_bindings.cpp`); C ABI wrapper (`include/ga/c_api.h`, `src/c_api.cpp`) |
 
 ## 2) Complete Checklist (What, Why, How)
 

@@ -151,3 +151,11 @@ cmake --build build --parallel
 ./build/tests/metaheuristics-sanity
 ./build/bin/metaheuristics-benchmark
 ```
+
+## Python API
+
+The same algorithms, configuration fields, optional fuzzy controller, seeded
+solutions, results, and caller-defined pipeline order are exposed by the
+`genetic_algorithm_lib` Python package. See
+[`python/metaheuristics_example.py`](python/metaheuristics_example.py) for a
+complete example and [`python/README.md`](python/README.md) for the API guide.

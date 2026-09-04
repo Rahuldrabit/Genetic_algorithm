@@ -260,6 +260,14 @@ if(Python3_FOUND AND pybind11_FOUND)
             LIBRARY DESTINATION lib/python/genetic_algorithm_lib
             RUNTIME DESTINATION lib/python/genetic_algorithm_lib
         )
+        add_test(
+            NAME python-bindings-sanity
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/python/bindings_sanity.py"
+        )
+        set_tests_properties(python-bindings-sanity PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            ENVIRONMENT "GA_PYTHON_MODULE_DIR=${CMAKE_BINARY_DIR}/python"
+        )
     endif()
     message(STATUS "Python bindings: ENABLED (pybind11 ${pybind11_VERSION})")
 else()
