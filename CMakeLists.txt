@@ -1,6 +1,8 @@
 cmake_minimum_required(VERSION 3.16)
 project(GeneticAlgorithm VERSION 1.0.0 LANGUAGES CXX)
 
+find_package(Threads REQUIRED)
+
 # Set C++ standard
 set(CMAKE_CXX_STANDARD 17)
 set(CMAKE_CXX_STANDARD_REQUIRED ON)
@@ -18,6 +20,12 @@ set(CORE_SOURCES
     src/genetic_algorithm.cpp
     src/c_api.cpp
     src/algorithms/moea/nsga2.cpp
+    src/aco/ant_colony.cpp
+    src/aco/continuous_ant_colony.cpp
+    src/fuzzy/fuzzy_c_means.cpp
+    src/gsa/gravitational_search.cpp
+    src/hybrid/metaheuristic_pipeline.cpp
+    src/pso/particle_swarm.cpp
 )
 
 # Build reusable library (framework)
@@ -32,6 +40,7 @@ target_include_directories(genetic_algorithm PUBLIC
     $<INSTALL_INTERFACE:include>
 )
 set_target_properties(genetic_algorithm PROPERTIES OUTPUT_NAME "genetic_algorithm")
+target_link_libraries(genetic_algorithm PUBLIC Threads::Threads)
 
 # Warnings: keep them compiler-appropriate (avoid injecting GCC/Clang flags into MSVC).
 if(MSVC)
@@ -41,6 +50,8 @@ else()
 endif()
 
 if(NOT SKBUILD)
+    enable_testing()
+
     # Main executable
     add_executable(simple-ga-test
         simple-ga-test.cc
@@ -102,6 +113,12 @@ if(NOT SKBUILD)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
     )
 
+    add_executable(ga-metaheuristics-minimal examples/metaheuristics_minimal.cpp)
+    target_link_libraries(ga-metaheuristics-minimal PRIVATE genetic_algorithm)
+    set_target_properties(ga-metaheuristics-minimal PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
+    )
+
     # Tests (lightweight sanity checks)
     add_executable(operators-sanity tests/operators_sanity.cc)
     target_link_libraries(operators-sanity PRIVATE genetic_algorithm)
@@ -151,6 +168,22 @@ if(NOT SKBUILD)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     )
 
+    add_executable(metaheuristics-sanity tests/metaheuristics_sanity.cc)
+    target_link_libraries(metaheuristics-sanity PRIVATE genetic_algorithm)
+    set_target_properties(metaheuristics-sanity PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+
+    add_test(NAME operators-sanity COMMAND operators-sanity)
+    add_test(NAME nsga2-sanity COMMAND nsga2-sanity)
+    add_test(NAME nsga3-sanity COMMAND nsga3-sanity)
+    add_test(NAME c-api-sanity COMMAND c-api-sanity)
+    add_test(NAME features-foundation-sanity COMMAND features-foundation-sanity)
+    add_test(NAME process-distributed-sanity COMMAND process-distributed-sanity)
+    add_test(NAME advanced-features-sanity COMMAND advanced-features-sanity)
+    add_test(NAME representations-core-sanity COMMAND representations-core-sanity)
+    add_test(NAME metaheuristics-sanity COMMAND metaheuristics-sanity)
+
     # Benchmark suite
     add_executable(ga-benchmark
         benchmark/benchmark_main.cc
@@ -158,6 +191,12 @@ if(NOT SKBUILD)
     )
     target_link_libraries(ga-benchmark PRIVATE genetic_algorithm)
     set_target_properties(ga-benchmark PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
+    )
+
+    add_executable(metaheuristics-benchmark benchmark/metaheuristics_benchmark.cc)
+    target_link_libraries(metaheuristics-benchmark PRIVATE genetic_algorithm)
+    set_target_properties(metaheuristics-benchmark PROPERTIES
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/bin"
     )
 endif()
@@ -221,6 +260,14 @@ if(Python3_FOUND AND pybind11_FOUND)
             LIBRARY DESTINATION lib/python/genetic_algorithm_lib
             RUNTIME DESTINATION lib/python/genetic_algorithm_lib
         )
+        add_test(
+            NAME python-bindings-sanity
+            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/python/bindings_sanity.py"
+        )
+        set_tests_properties(python-bindings-sanity PROPERTIES
+            WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
+            ENVIRONMENT "GA_PYTHON_MODULE_DIR=${CMAKE_BINARY_DIR}/python"
+        )
     endif()
     message(STATUS "Python bindings: ENABLED (pybind11 ${pybind11_VERSION})")
 else()
@@ -249,10 +296,6 @@ if(NOT SKBUILD)
         COMMENT "Cleaning result files"
     )
 endif()
-
-# Add test target (if you want to add unit tests later)
-# enable_testing()
-# add_test(NAME GA_Test COMMAND simple-ga-test)
 
 # Print configuration summary
 message(STATUS "=== Genetic Algorithm Build Configuration ===")

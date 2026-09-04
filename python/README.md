@@ -41,7 +41,53 @@ Run the bundled example:
 
 ```bash
 python3 python/example.py
+python3 python/metaheuristics_example.py
 ```
+
+## User-configured metaheuristics
+
+All metaheuristics in the C++ suite are also exposed through Python:
+
+- PSO: global-best, local-best, constriction, bare-bones, fully informed,
+  quantum-behaved, and binary
+- Graph ACO: Ant System, Elitist AS, Rank-Based AS, ACS, and MAX-MIN AS
+- Continuous ACOR and continuous GSA
+- Fuzzy C-means and the optional configurable fuzzy controller
+- The user-ordered `MetaheuristicPipeline` and `GeneticAlgorithmAdapter`
+
+```python
+import genetic_algorithm_lib as ga
+
+search = ga.SearchConfig()
+search.population_size = 40
+search.iterations = 50
+search.dimension = 5
+search.bounds = ga.Bounds(-5.0, 5.0)
+search.seed = 42
+
+pso_cfg = ga.PsoConfig()
+pso_cfg.search = search
+pso_cfg.variant = ga.PsoVariant.constriction
+
+gsa_cfg = ga.GsaConfig()
+gsa_cfg.search = search
+
+pipeline = ga.MetaheuristicPipeline()
+pipeline.add(ga.ParticleSwarmOptimizer(pso_cfg))
+pipeline.add(ga.GravitationalSearchOptimizer(gsa_cfg))
+
+result = pipeline.optimize(lambda x: 1.0 / (1.0 + sum(v * v for v in x)))
+```
+
+The library never chooses or reorders stages. Controllers default to `None`,
+so adaptive behavior occurs only when the caller assigns one. Python fitness
+callbacks are supported with any `SearchConfig.threads` value, although pure
+Python callbacks remain limited by the Python GIL and may not become faster
+with multiple evaluation threads.
+
+Advanced users may subclass `AdaptiveController` or `ContinuousOptimizer` in
+Python and insert those implementations into the same pipeline. Their Python
+object lifetimes are retained safely by the C++ core.
 
 ## NSGA-II Objective-Space Utilities
 

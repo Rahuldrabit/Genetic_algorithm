@@ -11,7 +11,10 @@ except ImportError:
     # Allow running from the source tree after a local CMake build.
     repo_root = os.path.join(os.path.dirname(__file__), "..")
     sys.path.insert(0, os.path.join(repo_root, "python"))
-    sys.path.insert(0, os.path.join(repo_root, "build", "python"))
+    module_dir = os.environ.get(
+        "GA_PYTHON_MODULE_DIR", os.path.join(repo_root, "build", "python")
+    )
+    sys.path.insert(0, module_dir)
     import genetic_algorithm_lib as ga
 
 
@@ -59,6 +62,143 @@ def main() -> None:
     )
     res = opt.optimize(sphere_fitness)
     assert len(res.best_genes) == 3
+
+    # User-configured metaheuristics
+    search = ga.SearchConfig()
+    search.population_size = 12
+    search.iterations = 5
+    search.dimension = 3
+    search.bounds = ga.Bounds(-2.0, 2.0)
+    search.seed = 31
+    search.threads = 2
+
+    fuzzy_cfg = ga.FuzzyControllerConfig()
+    fuzzy_cfg.improvement_scale = 12.0
+    fuzzy_cfg.low_diversity_stagnant = ga.ControlSignal(1.8, 0.8, 1.2, 1.5)
+    fuzzy = ga.FuzzyAdaptiveController(fuzzy_cfg)
+    state = ga.ProgressState()
+    state.stagnation = 1.0
+    assert fuzzy.update(state).exploration > 1.0
+
+    class FixedController(ga.AdaptiveController):
+        def update(self, _state):
+            return ga.ControlSignal(1.2, 1.0, 1.0, 1.0)
+
+    custom_controller_cfg = ga.PsoConfig()
+    custom_controller_cfg.search = search
+    # Deliberately assign a temporary object: the C++ config must retain the
+    # Python override for the optimizer's full lifetime.
+    custom_controller_cfg.controller = FixedController()
+    custom_controller_result = ga.ParticleSwarmOptimizer(
+        custom_controller_cfg
+    ).optimize(sphere_fitness)
+    assert len(custom_controller_result.best_solution) == 3
+
+    pso_variants = [
+        ga.PsoVariant.global_best,
+        ga.PsoVariant.local_best,
+        ga.PsoVariant.constriction,
+        ga.PsoVariant.bare_bones,
+        ga.PsoVariant.fully_informed,
+        ga.PsoVariant.quantum_behaved,
+        ga.PsoVariant.binary,
+    ]
+    for index, variant in enumerate(pso_variants):
+        pso_cfg = ga.PsoConfig()
+        pso_cfg.search = search
+        pso_cfg.search.seed = 40 + index
+        pso_cfg.variant = variant
+        pso_cfg.controller = fuzzy
+        if variant == ga.PsoVariant.binary:
+            pso_cfg.search.bounds = ga.Bounds(0.0, 1.0)
+        pso_result = ga.ParticleSwarmOptimizer(pso_cfg).optimize(sphere_fitness)
+        assert len(pso_result.best_solution) == 3
+
+    graph = ga.DenseGraph([
+        [0.0, 2.0, 9.0, 10.0],
+        [2.0, 0.0, 6.0, 4.0],
+        [9.0, 6.0, 0.0, 8.0],
+        [10.0, 4.0, 8.0, 0.0],
+    ])
+    aco_variants = [
+        ga.AntColonyVariant.ant_system,
+        ga.AntColonyVariant.elitist_ant_system,
+        ga.AntColonyVariant.rank_based_ant_system,
+        ga.AntColonyVariant.ant_colony_system,
+        ga.AntColonyVariant.max_min_ant_system,
+    ]
+    for index, variant in enumerate(aco_variants):
+        aco_cfg = ga.AntColonyConfig()
+        aco_cfg.ants = 8
+        aco_cfg.iterations = 5
+        aco_cfg.seed = 60 + index
+        aco_cfg.variant = variant
+        aco_cfg.controller = fuzzy
+        tour = ga.AntColonyOptimizer(aco_cfg).solve(graph)
+        assert len(tour.best_tour) == graph.size
+
+    acor_cfg = ga.AcorConfig()
+    acor_cfg.search = search
+    acor_cfg.archive_size = 12
+    acor_cfg.sample_count = 8
+    acor_cfg.controller = fuzzy
+    acor = ga.ContinuousAntColonyOptimizer(acor_cfg)
+    assert len(acor.optimize(sphere_fitness).best_solution) == 3
+
+    gsa_cfg = ga.GsaConfig()
+    gsa_cfg.search = search
+    gsa_cfg.controller = fuzzy
+    gsa = ga.GravitationalSearchOptimizer(gsa_cfg)
+    assert len(gsa.optimize(sphere_fitness).best_solution) == 3
+
+    fcm_cfg = ga.FuzzyCMeansConfig()
+    fcm_cfg.clusters = 2
+    fcm_cfg.seed = 73
+    clusters = ga.FuzzyCMeans(fcm_cfg).fit([
+        [0.0, 0.1], [0.1, 0.0], [-0.1, 0.0],
+        [9.9, 10.0], [10.0, 9.9], [10.1, 10.0],
+    ])
+    assert len(clusters.centers) == 2
+    assert len(clusters.labels()) == 6
+
+    # The user alone selects the hybrid members and their exact order.
+    ga_cfg = ga.Config()
+    ga_cfg.population_size = 12
+    ga_cfg.generations = 5
+    ga_cfg.dimension = 3
+    ga_cfg.bounds = ga.Bounds(-2.0, 2.0)
+    ga_cfg.seed = 81
+    pipeline_pso_cfg = ga.PsoConfig()
+    pipeline_pso_cfg.search = search
+    pipeline_pso_cfg.variant = ga.PsoVariant.constriction
+    pipeline = ga.MetaheuristicPipeline()
+    pipeline.add(ga.GeneticAlgorithmAdapter(ga_cfg))
+    pipeline.add(ga.ParticleSwarmOptimizer(pipeline_pso_cfg))
+    pipeline.add(ga.ContinuousAntColonyOptimizer(acor_cfg))
+    hybrid_result = pipeline.optimize_detailed(sphere_fitness)
+    assert [stage.optimizer for stage in hybrid_result.stages] == [
+        "GA", "PSO-constriction", "ACOR"
+    ]
+    assert len(hybrid_result.combined.best_solution) == 3
+
+    class PythonStage(ga.ContinuousOptimizer):
+        def name(self):
+            return "python-stage"
+
+        def optimize(self, fitness, seeds):
+            stage_result = ga.OptimizationResult()
+            stage_result.best_solution = list(seeds[0]) if seeds else [0.0] * 3
+            stage_result.best_fitness = fitness(stage_result.best_solution)
+            stage_result.best_history = [stage_result.best_fitness]
+            stage_result.avg_history = [stage_result.best_fitness]
+            stage_result.evaluations = 1
+            stage_result.generations = 1
+            return stage_result
+
+    extension_pipeline = ga.MetaheuristicPipeline()
+    extension_pipeline.add(PythonStage())
+    extension_result = extension_pipeline.optimize_detailed(sphere_fitness)
+    assert extension_result.stages[0].optimizer == "python-stage"
 
     mo = opt.optimize_multi_objective_nsga2(
         [lambda x: x[0] * x[0], lambda x: (x[0] - 1.0) * (x[0] - 1.0)],

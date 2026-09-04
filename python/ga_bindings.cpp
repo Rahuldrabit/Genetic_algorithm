@@ -6,6 +6,9 @@
  *  - ga.Bounds        - Gene bounds (lower, upper)
  *  - ga.Result        - Run results
  *  - ga.GeneticAlgorithm - Main GA class
+ *  - ga.ParticleSwarmOptimizer / AntColonyOptimizer / GSA / ACOR
+ *  - ga.FuzzyCMeans / FuzzyAdaptiveController
+ *  - ga.MetaheuristicPipeline - User-ordered optimizer composition
  *  - Operator factories: make_gaussian_mutation, make_uniform_mutation,
  *                        make_one_point_crossover, make_two_point_crossover
  */
@@ -14,6 +17,7 @@
 #include <pybind11/stl.h>
 
 #include <random>
+#include <memory>
 #include <stdexcept>
 #include <thread>
 #include <limits>
@@ -39,6 +43,7 @@
 #include "ga/gp/tree_builder.hpp"
 #include "ga/gp/type_system.hpp"
 #include "ga/hybrid/hybrid_optimizer.hpp"
+#include "ga/metaheuristics.hpp"
 #include "ga/moea/nsga3.hpp"
 #include "ga/moea/mo_cmaes.hpp"
 #include "ga/moea/spea2.hpp"
@@ -156,6 +161,65 @@ using DoubleBatchEvaluator =
                                       double,
                                       std::function<double(const std::vector<double>&)>>;
 
+class PyAdaptiveController : public ga::metaheuristics::IAdaptiveController,
+                             public py::trampoline_self_life_support {
+public:
+    using ga::metaheuristics::IAdaptiveController::IAdaptiveController;
+
+    ga::metaheuristics::ControlSignal update(
+        const ga::metaheuristics::ProgressState& state) const override {
+        PYBIND11_OVERRIDE_PURE(
+            ga::metaheuristics::ControlSignal,
+            ga::metaheuristics::IAdaptiveController,
+            update,
+            state);
+    }
+};
+
+class PyContinuousOptimizer : public ga::metaheuristics::IContinuousOptimizer,
+                              public py::trampoline_self_life_support {
+public:
+    using ga::metaheuristics::IContinuousOptimizer::IContinuousOptimizer;
+
+    std::string name() const override {
+        PYBIND11_OVERRIDE_PURE(
+            std::string, ga::metaheuristics::IContinuousOptimizer, name);
+    }
+
+    ga::core::OptimizationResult optimize(
+        const ga::Fitness& fitness,
+        const ga::metaheuristics::SeedPopulation& seeds) override {
+        PYBIND11_OVERRIDE_PURE(
+            ga::core::OptimizationResult,
+            ga::metaheuristics::IContinuousOptimizer,
+            optimize,
+            fitness,
+            seeds);
+    }
+};
+
+static ga::Fitness wrapPythonFitness(py::function fitness) {
+    return [fitness = std::move(fitness)](const std::vector<double>& genes) {
+        py::gil_scoped_acquire acquire;
+        return fitness(genes).cast<double>();
+    };
+}
+
+template <typename Optimizer>
+static ga::core::OptimizationResult optimizeFromPython(
+    Optimizer& optimizer,
+    py::function fitness,
+    const ga::metaheuristics::SeedPopulation& seeds) {
+    ga::Fitness wrapped = wrapPythonFitness(std::move(fitness));
+    py::gil_scoped_release release;
+    return optimizer.optimize(wrapped, seeds);
+}
+
+static std::shared_ptr<ga::metaheuristics::IAdaptiveController> mutableController(
+    const std::shared_ptr<const ga::metaheuristics::IAdaptiveController>& controller) {
+    return std::const_pointer_cast<ga::metaheuristics::IAdaptiveController>(controller);
+}
+
 PYBIND11_MODULE(_core, m) {
     m.doc() = "Genetic Algorithm framework — C++ core with Python bindings";
 
@@ -195,6 +259,8 @@ PYBIND11_MODULE(_core, m) {
         .def_readonly("best_fitness",  &ga::Result::bestFitness,  "Fitness of the best individual")
         .def_readonly("best_history",  &ga::Result::bestHistory,  "Best fitness per generation")
         .def_readonly("avg_history",   &ga::Result::avgHistory,   "Average fitness per generation")
+        .def_readonly("evaluations",   &ga::Result::evaluations,  "Number of fitness evaluations")
+        .def_readonly("iterations",    &ga::Result::iterations,   "Number of completed generations")
         .def("__repr__", [](const ga::Result& r){
             return "<Result best_fitness=" + std::to_string(r.bestFitness) + ">";
         });
@@ -209,6 +275,365 @@ PYBIND11_MODULE(_core, m) {
         .def_readwrite("pareto_genes", &ga::core::OptimizationResult::paretoGenes)
         .def_readwrite("evaluations", &ga::core::OptimizationResult::evaluations)
         .def_readwrite("generations", &ga::core::OptimizationResult::generations);
+
+    // ----------------------------------------------------------- Metaheuristics
+    py::class_<ga::metaheuristics::SearchConfig>(m, "SearchConfig")
+        .def(py::init<>())
+        .def_readwrite("population_size", &ga::metaheuristics::SearchConfig::populationSize)
+        .def_readwrite("iterations", &ga::metaheuristics::SearchConfig::iterations)
+        .def_readwrite("dimension", &ga::metaheuristics::SearchConfig::dimension)
+        .def_readwrite("bounds", &ga::metaheuristics::SearchConfig::bounds)
+        .def_readwrite("seed", &ga::metaheuristics::SearchConfig::seed)
+        .def_readwrite("threads", &ga::metaheuristics::SearchConfig::threads);
+
+    py::class_<ga::metaheuristics::ProgressState>(m, "ProgressState")
+        .def(py::init<>())
+        .def_readwrite("iteration", &ga::metaheuristics::ProgressState::iteration)
+        .def_readwrite("max_iterations", &ga::metaheuristics::ProgressState::maxIterations)
+        .def_readwrite("normalized_diversity",
+                       &ga::metaheuristics::ProgressState::normalizedDiversity)
+        .def_readwrite("relative_improvement",
+                       &ga::metaheuristics::ProgressState::relativeImprovement)
+        .def_readwrite("stagnation", &ga::metaheuristics::ProgressState::stagnation);
+
+    py::class_<ga::metaheuristics::ControlSignal>(m, "ControlSignal")
+        .def(py::init<>())
+        .def(py::init([](double exploration,
+                         double exploitation,
+                         double evaporation,
+                         double randomization) {
+                 ga::metaheuristics::ControlSignal signal;
+                 signal.exploration = exploration;
+                 signal.exploitation = exploitation;
+                 signal.evaporation = evaporation;
+                 signal.randomization = randomization;
+                 return signal;
+             }),
+             py::arg("exploration") = 1.0,
+             py::arg("exploitation") = 1.0,
+             py::arg("evaporation") = 1.0,
+             py::arg("randomization") = 1.0)
+        .def_readwrite("exploration", &ga::metaheuristics::ControlSignal::exploration)
+        .def_readwrite("exploitation", &ga::metaheuristics::ControlSignal::exploitation)
+        .def_readwrite("evaporation", &ga::metaheuristics::ControlSignal::evaporation)
+        .def_readwrite("randomization", &ga::metaheuristics::ControlSignal::randomization);
+
+    py::class_<ga::metaheuristics::IAdaptiveController,
+               PyAdaptiveController,
+               py::smart_holder>(
+        m, "AdaptiveController", "Base class for optional adaptive controllers")
+        .def(py::init<>())
+        .def("update", &ga::metaheuristics::IAdaptiveController::update,
+             py::arg("state"));
+
+    py::class_<ga::fuzzy::FuzzyControllerConfig>(m, "FuzzyControllerConfig")
+        .def(py::init<>())
+        .def_readwrite("low_zero", &ga::fuzzy::FuzzyControllerConfig::lowZero)
+        .def_readwrite("medium_center", &ga::fuzzy::FuzzyControllerConfig::mediumCenter)
+        .def_readwrite("high_start", &ga::fuzzy::FuzzyControllerConfig::highStart)
+        .def_readwrite("improvement_scale",
+                       &ga::fuzzy::FuzzyControllerConfig::improvementScale)
+        .def_readwrite("low_diversity_stagnant",
+                       &ga::fuzzy::FuzzyControllerConfig::lowDiversityStagnant)
+        .def_readwrite("low_diversity_slow",
+                       &ga::fuzzy::FuzzyControllerConfig::lowDiversitySlow)
+        .def_readwrite("balanced", &ga::fuzzy::FuzzyControllerConfig::balanced)
+        .def_readwrite("diverse_productive",
+                       &ga::fuzzy::FuzzyControllerConfig::diverseProductive)
+        .def_readwrite("diverse_stagnant",
+                       &ga::fuzzy::FuzzyControllerConfig::diverseStagnant);
+
+    py::class_<ga::fuzzy::FuzzyAdaptiveController,
+               ga::metaheuristics::IAdaptiveController,
+               py::smart_holder>(
+        m, "FuzzyAdaptiveController")
+        .def(py::init<ga::fuzzy::FuzzyControllerConfig>(),
+             py::arg("config") = ga::fuzzy::FuzzyControllerConfig{})
+        .def("update", &ga::fuzzy::FuzzyAdaptiveController::update,
+             py::arg("state"))
+        .def_property_readonly("config", [](const ga::fuzzy::FuzzyAdaptiveController& self) {
+            return self.config();
+        });
+
+    py::class_<ga::metaheuristics::IContinuousOptimizer,
+               PyContinuousOptimizer,
+               py::smart_holder>(
+        m, "ContinuousOptimizer", "Base class for continuous optimizers")
+        .def(py::init<>())
+        .def("name", &ga::metaheuristics::IContinuousOptimizer::name)
+        .def("optimize",
+             [](ga::metaheuristics::IContinuousOptimizer& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{});
+
+    py::enum_<ga::pso::PsoVariant>(m, "PsoVariant")
+        .value("global_best", ga::pso::PsoVariant::GlobalBest)
+        .value("local_best", ga::pso::PsoVariant::LocalBest)
+        .value("constriction", ga::pso::PsoVariant::Constriction)
+        .value("bare_bones", ga::pso::PsoVariant::BareBones)
+        .value("fully_informed", ga::pso::PsoVariant::FullyInformed)
+        .value("quantum_behaved", ga::pso::PsoVariant::QuantumBehaved)
+        .value("binary", ga::pso::PsoVariant::Binary);
+
+    py::class_<ga::pso::PsoConfig>(m, "PsoConfig")
+        .def(py::init<>())
+        .def_readwrite("search", &ga::pso::PsoConfig::search)
+        .def_readwrite("variant", &ga::pso::PsoConfig::variant)
+        .def_readwrite("inertia", &ga::pso::PsoConfig::inertia)
+        .def_readwrite("cognitive", &ga::pso::PsoConfig::cognitive)
+        .def_readwrite("social", &ga::pso::PsoConfig::social)
+        .def_readwrite("constriction", &ga::pso::PsoConfig::constriction)
+        .def_readwrite("velocity_clamp", &ga::pso::PsoConfig::velocityClamp)
+        .def_readwrite("binary_velocity_clamp",
+                       &ga::pso::PsoConfig::binaryVelocityClamp)
+        .def_readwrite("neighborhood_radius",
+                       &ga::pso::PsoConfig::neighborhoodRadius)
+        .def_readwrite("quantum_beta", &ga::pso::PsoConfig::quantumBeta)
+        .def_property("controller",
+                      [](const ga::pso::PsoConfig& config) {
+                          return mutableController(config.controller);
+                      },
+                      [](ga::pso::PsoConfig& config,
+                         std::shared_ptr<ga::metaheuristics::IAdaptiveController> controller) {
+                          config.controller = std::move(controller);
+                      });
+
+    py::class_<ga::pso::ParticleSwarmOptimizer,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(
+        m, "ParticleSwarmOptimizer")
+        .def(py::init<ga::pso::PsoConfig>(), py::arg("config") = ga::pso::PsoConfig{})
+        .def("name", &ga::pso::ParticleSwarmOptimizer::name)
+        .def("optimize",
+             [](ga::pso::ParticleSwarmOptimizer& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{})
+        .def_property_readonly("config", [](const ga::pso::ParticleSwarmOptimizer& self) {
+            return self.config();
+        });
+
+    py::class_<ga::aco::DenseGraph>(m, "DenseGraph")
+        .def(py::init<std::vector<std::vector<double>>, bool>(),
+             py::arg("costs"), py::arg("symmetric") = true)
+        .def_property_readonly("size", &ga::aco::DenseGraph::size)
+        .def_property_readonly("symmetric", &ga::aco::DenseGraph::symmetric)
+        .def("cost", &ga::aco::DenseGraph::cost, py::arg("from_node"), py::arg("to_node"));
+
+    py::enum_<ga::aco::AntColonyVariant>(m, "AntColonyVariant")
+        .value("ant_system", ga::aco::AntColonyVariant::AntSystem)
+        .value("elitist_ant_system", ga::aco::AntColonyVariant::ElitistAntSystem)
+        .value("rank_based_ant_system", ga::aco::AntColonyVariant::RankBasedAntSystem)
+        .value("ant_colony_system", ga::aco::AntColonyVariant::AntColonySystem)
+        .value("max_min_ant_system", ga::aco::AntColonyVariant::MaxMinAntSystem);
+
+    py::class_<ga::aco::AntColonyConfig>(m, "AntColonyConfig")
+        .def(py::init<>())
+        .def_readwrite("ants", &ga::aco::AntColonyConfig::ants)
+        .def_readwrite("iterations", &ga::aco::AntColonyConfig::iterations)
+        .def_readwrite("alpha", &ga::aco::AntColonyConfig::alpha)
+        .def_readwrite("beta", &ga::aco::AntColonyConfig::beta)
+        .def_readwrite("evaporation", &ga::aco::AntColonyConfig::evaporation)
+        .def_readwrite("deposit_scale", &ga::aco::AntColonyConfig::depositScale)
+        .def_readwrite("initial_pheromone", &ga::aco::AntColonyConfig::initialPheromone)
+        .def_readwrite("elitist_weight", &ga::aco::AntColonyConfig::elitistWeight)
+        .def_readwrite("rank_count", &ga::aco::AntColonyConfig::rankCount)
+        .def_readwrite("exploitation_probability",
+                       &ga::aco::AntColonyConfig::exploitationProbability)
+        .def_readwrite("local_evaporation", &ga::aco::AntColonyConfig::localEvaporation)
+        .def_readwrite("candidate_list_size", &ga::aco::AntColonyConfig::candidateListSize)
+        .def_readwrite("min_pheromone", &ga::aco::AntColonyConfig::minPheromone)
+        .def_readwrite("max_pheromone", &ga::aco::AntColonyConfig::maxPheromone)
+        .def_readwrite("variant", &ga::aco::AntColonyConfig::variant)
+        .def_readwrite("seed", &ga::aco::AntColonyConfig::seed)
+        .def_property("controller",
+                      [](const ga::aco::AntColonyConfig& config) {
+                          return mutableController(config.controller);
+                      },
+                      [](ga::aco::AntColonyConfig& config,
+                         std::shared_ptr<ga::metaheuristics::IAdaptiveController> controller) {
+                          config.controller = std::move(controller);
+                      });
+
+    py::class_<ga::aco::AntColonyResult>(m, "AntColonyResult")
+        .def(py::init<>())
+        .def_readonly("best_tour", &ga::aco::AntColonyResult::bestTour)
+        .def_readonly("best_cost", &ga::aco::AntColonyResult::bestCost)
+        .def_readonly("best_cost_history", &ga::aco::AntColonyResult::bestCostHistory)
+        .def_readonly("evaluations", &ga::aco::AntColonyResult::evaluations)
+        .def_readonly("iterations", &ga::aco::AntColonyResult::iterations);
+
+    py::class_<ga::aco::AntColonyOptimizer>(m, "AntColonyOptimizer")
+        .def(py::init<ga::aco::AntColonyConfig>(),
+             py::arg("config") = ga::aco::AntColonyConfig{})
+        .def("solve", [](const ga::aco::AntColonyOptimizer& self,
+                          const ga::aco::DenseGraph& graph) {
+                 py::gil_scoped_release release;
+                 return self.solve(graph);
+             }, py::arg("graph"))
+        .def_property_readonly("config", [](const ga::aco::AntColonyOptimizer& self) {
+            return self.config();
+        });
+
+    py::class_<ga::aco::AcorConfig>(m, "AcorConfig")
+        .def(py::init<>())
+        .def_readwrite("search", &ga::aco::AcorConfig::search)
+        .def_readwrite("archive_size", &ga::aco::AcorConfig::archiveSize)
+        .def_readwrite("sample_count", &ga::aco::AcorConfig::sampleCount)
+        .def_readwrite("locality", &ga::aco::AcorConfig::locality)
+        .def_readwrite("convergence_speed", &ga::aco::AcorConfig::convergenceSpeed)
+        .def_property("controller",
+                      [](const ga::aco::AcorConfig& config) {
+                          return mutableController(config.controller);
+                      },
+                      [](ga::aco::AcorConfig& config,
+                         std::shared_ptr<ga::metaheuristics::IAdaptiveController> controller) {
+                          config.controller = std::move(controller);
+                      });
+
+    py::class_<ga::aco::ContinuousAntColonyOptimizer,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(
+        m, "ContinuousAntColonyOptimizer")
+        .def(py::init<ga::aco::AcorConfig>(), py::arg("config") = ga::aco::AcorConfig{})
+        .def("name", &ga::aco::ContinuousAntColonyOptimizer::name)
+        .def("optimize",
+             [](ga::aco::ContinuousAntColonyOptimizer& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{})
+        .def_property_readonly("config",
+            [](const ga::aco::ContinuousAntColonyOptimizer& self) {
+                return self.config();
+            });
+
+    py::class_<ga::gsa::GsaConfig>(m, "GsaConfig")
+        .def(py::init<>())
+        .def_readwrite("search", &ga::gsa::GsaConfig::search)
+        .def_readwrite("gravitational_constant", &ga::gsa::GsaConfig::gravitationalConstant)
+        .def_readwrite("decay", &ga::gsa::GsaConfig::decay)
+        .def_readwrite("epsilon", &ga::gsa::GsaConfig::epsilon)
+        .def_readwrite("final_elite_fraction", &ga::gsa::GsaConfig::finalEliteFraction)
+        .def_property("controller",
+                      [](const ga::gsa::GsaConfig& config) {
+                          return mutableController(config.controller);
+                      },
+                      [](ga::gsa::GsaConfig& config,
+                         std::shared_ptr<ga::metaheuristics::IAdaptiveController> controller) {
+                          config.controller = std::move(controller);
+                      });
+
+    py::class_<ga::gsa::GravitationalSearchOptimizer,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(
+        m, "GravitationalSearchOptimizer")
+        .def(py::init<ga::gsa::GsaConfig>(), py::arg("config") = ga::gsa::GsaConfig{})
+        .def("name", &ga::gsa::GravitationalSearchOptimizer::name)
+        .def("optimize",
+             [](ga::gsa::GravitationalSearchOptimizer& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{})
+        .def_property_readonly("config",
+            [](const ga::gsa::GravitationalSearchOptimizer& self) {
+                return self.config();
+            });
+
+    py::class_<ga::fuzzy::FuzzyCMeansConfig>(m, "FuzzyCMeansConfig")
+        .def(py::init<>())
+        .def_readwrite("clusters", &ga::fuzzy::FuzzyCMeansConfig::clusters)
+        .def_readwrite("max_iterations", &ga::fuzzy::FuzzyCMeansConfig::maxIterations)
+        .def_readwrite("fuzziness", &ga::fuzzy::FuzzyCMeansConfig::fuzziness)
+        .def_readwrite("tolerance", &ga::fuzzy::FuzzyCMeansConfig::tolerance)
+        .def_readwrite("seed", &ga::fuzzy::FuzzyCMeansConfig::seed);
+
+    py::class_<ga::fuzzy::FuzzyCMeansResult>(m, "FuzzyCMeansResult")
+        .def(py::init<>())
+        .def_readonly("centers", &ga::fuzzy::FuzzyCMeansResult::centers)
+        .def_readonly("membership", &ga::fuzzy::FuzzyCMeansResult::membership)
+        .def_readonly("objective_history", &ga::fuzzy::FuzzyCMeansResult::objectiveHistory)
+        .def_readonly("iterations", &ga::fuzzy::FuzzyCMeansResult::iterations)
+        .def_readonly("converged", &ga::fuzzy::FuzzyCMeansResult::converged)
+        .def("labels", &ga::fuzzy::FuzzyCMeansResult::labels);
+
+    py::class_<ga::fuzzy::FuzzyCMeans>(m, "FuzzyCMeans")
+        .def(py::init<ga::fuzzy::FuzzyCMeansConfig>(),
+             py::arg("config") = ga::fuzzy::FuzzyCMeansConfig{})
+        .def("fit", &ga::fuzzy::FuzzyCMeans::fit, py::arg("data"),
+             py::call_guard<py::gil_scoped_release>())
+        .def_property_readonly("config", [](const ga::fuzzy::FuzzyCMeans& self) {
+            return self.config();
+        });
+
+    py::class_<ga::metaheuristics::GeneticAlgorithmAdapter,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(
+        m, "GeneticAlgorithmAdapter")
+        .def(py::init<ga::Config>(), py::arg("config"))
+        .def("name", &ga::metaheuristics::GeneticAlgorithmAdapter::name)
+        .def("optimize",
+             [](ga::metaheuristics::GeneticAlgorithmAdapter& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{});
+
+    py::class_<ga::hybrid::StageResult>(m, "MetaheuristicStageResult")
+        .def_readonly("optimizer", &ga::hybrid::StageResult::optimizer)
+        .def_readonly("result", &ga::hybrid::StageResult::result);
+
+    py::class_<ga::hybrid::PipelineResult>(m, "MetaheuristicPipelineResult")
+        .def_readonly("combined", &ga::hybrid::PipelineResult::combined)
+        .def_readonly("stages", &ga::hybrid::PipelineResult::stages);
+
+    py::class_<ga::hybrid::MetaheuristicPipeline,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(
+        m, "MetaheuristicPipeline")
+        .def(py::init<>())
+        .def("add",
+             [](ga::hybrid::MetaheuristicPipeline& self,
+                 std::shared_ptr<ga::metaheuristics::IContinuousOptimizer> optimizer)
+                 -> ga::hybrid::MetaheuristicPipeline& {
+                 return self.addShared(std::move(optimizer));
+             },
+             py::arg("optimizer"),
+             py::return_value_policy::reference_internal)
+        .def("name", &ga::hybrid::MetaheuristicPipeline::name)
+        .def("size", &ga::hybrid::MetaheuristicPipeline::size)
+        .def("optimize",
+             [](ga::hybrid::MetaheuristicPipeline& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{})
+        .def("optimize_detailed",
+             [](ga::hybrid::MetaheuristicPipeline& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 ga::Fitness wrapped = wrapPythonFitness(std::move(fitness));
+                 py::gil_scoped_release release;
+                 return self.optimizeDetailed(wrapped, seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{});
 
     // ---------------------------------------------------------- Core abstractions
     py::class_<ga::Evaluation>(m, "Evaluation", "Evaluation/objective record")
@@ -374,7 +799,11 @@ PYBIND11_MODULE(_core, m) {
         >>> print(result.best_fitness)
         )")
         .def(py::init<const ga::Config&>(), py::arg("config"))
-        .def("run", &ga::GeneticAlgorithm::run, py::arg("fitness"),
+        .def("run",
+             py::overload_cast<const ga::Fitness&,
+                               const std::vector<std::vector<double>>&>(
+                 &ga::GeneticAlgorithm::run),
+             py::arg("fitness"), py::arg("initial_solutions") = std::vector<std::vector<double>>{},
              "Run the GA with the given fitness callable (list[float] -> float). Higher is better.")
         .def("set_mutation_operator", &ga::GeneticAlgorithm::setMutationOperator,
              py::arg("op"), "Set a custom mutation operator")
