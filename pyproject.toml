@@ -41,3 +41,6 @@ sdist.exclude = [
     "build/**",
     "dist/**",
 ]
+
+[tool.cibuildwheel]
+skip = ["*-win32", "*_i686"]

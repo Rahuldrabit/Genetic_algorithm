@@ -7,6 +7,7 @@
 #include <numeric>
 #include <algorithm>
 #include <sstream>
+#include <chrono>
 
 // MSVC does not guarantee `M_PI` is defined unless special macros are set.
 // Define it here to keep the benchmark code portable.
