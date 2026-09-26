@@ -242,23 +242,25 @@ else()
 endif()
 
 if(Python_FOUND)
-    # Prefer submodule in ext/nanobind
-    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ext/nanobind/CMakeLists.txt")
-        add_subdirectory(ext/nanobind)
-        set(nanobind_FOUND TRUE)
+    if(SKBUILD)
+        # Under scikit-build-core, nanobind is installed in the build environment
+        # and CMAKE_PREFIX_PATH is set automatically, so find_package works directly.
+        find_package(nanobind CONFIG REQUIRED)
     else()
-        execute_process(
-            COMMAND "${Python_EXECUTABLE}" -c "import nanobind; print(nanobind.cmake_dir())"
-            OUTPUT_VARIABLE _nanobind_cmake_dir
-            OUTPUT_STRIP_TRAILING_WHITESPACE
-            ERROR_QUIET
-        )
-        if(_nanobind_cmake_dir)
-            list(APPEND CMAKE_PREFIX_PATH "${_nanobind_cmake_dir}")
-        endif()
-        if(SKBUILD)
-            find_package(nanobind CONFIG REQUIRED)
+        # Prefer submodule in ext/nanobind for local/raw CMake builds
+        if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ext/nanobind/CMakeLists.txt")
+            add_subdirectory(ext/nanobind)
+            set(nanobind_FOUND TRUE)
         else()
+            execute_process(
+                COMMAND "${Python_EXECUTABLE}" -c "import nanobind; print(nanobind.cmake_dir())"
+                OUTPUT_VARIABLE _nanobind_cmake_dir
+                OUTPUT_STRIP_TRAILING_WHITESPACE
+                ERROR_QUIET
+            )
+            if(_nanobind_cmake_dir)
+                list(APPEND CMAKE_PREFIX_PATH "${_nanobind_cmake_dir}")
+            endif()
             find_package(nanobind CONFIG QUIET)
         endif()
     endif()
