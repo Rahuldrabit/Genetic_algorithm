@@ -11,6 +11,12 @@ namespace gp {
 
 class ADFPool {
 public:
+    ADFPool() = default;
+    ADFPool(ADFPool&&) noexcept = default;
+    ADFPool& operator=(ADFPool&&) noexcept = default;
+    ADFPool(const ADFPool&) = delete;
+    ADFPool& operator=(const ADFPool&) = delete;
+
     void put(const std::string& name, const Node& root) {
         functions_[name] = root.clone();
     }

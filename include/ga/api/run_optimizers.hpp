@@ -16,6 +16,11 @@
 #include "ga/gso/glowworm_swarm.hpp"
 #include "ga/gsa/gravitational_search.hpp"
 #include "ga/metaheuristics/genetic_algorithm_adapter.hpp"
+#include "ga/algorithms/island_model.hpp"
+#include "ga/metaheuristics/simulated_annealing.hpp"
+#include "ga/metaheuristics/hill_climbing.hpp"
+#include "ga/adaptive/dynamic_ga.hpp"
+#include "ga/constraints/constrained_optimizer.hpp"
 
 namespace ga {
 namespace api {
@@ -38,7 +43,14 @@ enum class AlgorithmType {
     GsoMultiModal,
 
     GravitationalSearch,
-    GeneticAlgorithm
+    GeneticAlgorithm,
+
+    // Alternatives & Advanced Strategies
+    IslandModel,
+    SimulatedAnnealing,
+    HillClimbing,
+    DynamicGeneticAlgorithm,
+    ConstrainedOptimization
 };
 
 namespace detail {
@@ -160,6 +172,88 @@ inline ga::core::OptimizationResult runGeneticAlgorithm(
     return opt.optimize(fitness);
 }
 
+// ---------------- High-Level Runners for Alternatives ----------------
+
+inline ga::core::OptimizationResult runIslandModel(
+    const ga::Fitness& fitness,
+    std::size_t numIslands = 4,
+    std::size_t islandPopulationSize = 50,
+    std::size_t dimension = 10,
+    std::size_t iterations = 100,
+    ga::Bounds bounds = {-5.12, 5.12},
+    unsigned seed = 0,
+    ga::algorithms::IslandTopology topology = ga::algorithms::IslandTopology::Ring) {
+    ga::algorithms::IslandConfig cfg;
+    cfg.numIslands = numIslands;
+    cfg.islandPopulationSize = islandPopulationSize;
+    cfg.iterations = iterations;
+    cfg.topology = topology;
+    cfg.search = detail::makeSearchConfig(dimension, iterations, bounds, seed, numIslands * islandPopulationSize);
+    ga::algorithms::IslandModelOptimizer opt(cfg);
+    return opt.optimize(fitness);
+}
+
+inline ga::core::OptimizationResult runSimulatedAnnealing(
+    const ga::Fitness& fitness,
+    std::size_t dimension = 10,
+    std::size_t iterations = 200,
+    ga::Bounds bounds = {-5.12, 5.12},
+    double initialTemperature = 100.0,
+    double coolingRate = 0.95,
+    unsigned seed = 0) {
+    ga::metaheuristics::SimulatedAnnealingConfig cfg;
+    cfg.search = detail::makeSearchConfig(dimension, iterations, bounds, seed, 1);
+    cfg.initialTemperature = initialTemperature;
+    cfg.coolingRate = coolingRate;
+    ga::metaheuristics::SimulatedAnnealingOptimizer opt(cfg);
+    return opt.optimize(fitness);
+}
+
+inline ga::core::OptimizationResult runHillClimbing(
+    const ga::Fitness& fitness,
+    std::size_t dimension = 10,
+    std::size_t iterations = 200,
+    ga::Bounds bounds = {-5.12, 5.12},
+    double stepSize = 0.02,
+    std::size_t restarts = 2,
+    unsigned seed = 0) {
+    ga::metaheuristics::HillClimbingConfig cfg;
+    cfg.search = detail::makeSearchConfig(dimension, iterations, bounds, seed, 1);
+    cfg.stepSize = stepSize;
+    cfg.restarts = restarts;
+    ga::metaheuristics::HillClimbingOptimizer opt(cfg);
+    return opt.optimize(fitness);
+}
+
+inline ga::core::OptimizationResult runDynamicGa(
+    const ga::Fitness& fitness,
+    std::size_t dimension = 10,
+    std::size_t iterations = 100,
+    ga::Bounds bounds = {-5.12, 5.12},
+    std::size_t populationSize = 50,
+    unsigned seed = 0,
+    ga::adaptive::DynamicStrategy strategy = ga::adaptive::DynamicStrategy::Hybrid) {
+    ga::adaptive::DynamicGAConfig cfg;
+    cfg.search = detail::makeSearchConfig(dimension, iterations, bounds, seed, populationSize);
+    cfg.strategy = strategy;
+    ga::adaptive::DynamicGAOptimizer opt(cfg);
+    return opt.optimize(fitness);
+}
+
+inline ga::core::OptimizationResult runConstrainedOptimization(
+    const ga::Fitness& fitness,
+    const ga::constraints::ConstraintSet& constraints,
+    std::size_t dimension = 10,
+    std::size_t iterations = 100,
+    ga::Bounds bounds = {-5.12, 5.12},
+    std::size_t populationSize = 50,
+    unsigned seed = 0) {
+    ga::constraints::ConstrainedOptimizerConfig cfg;
+    cfg.search = detail::makeSearchConfig(dimension, iterations, bounds, seed, populationSize);
+    ga::constraints::ConstrainedOptimizer opt(cfg, constraints);
+    return opt.optimize(fitness);
+}
+
 inline ga::core::OptimizationResult solve(
     AlgorithmType type,
     const ga::Fitness& fitness,
@@ -201,6 +295,16 @@ inline ga::core::OptimizationResult solve(
             return runGsa(fitness, dim, iters, b, seed, pop);
         case AlgorithmType::GeneticAlgorithm:
             return runGeneticAlgorithm(fitness, dim, iters, b, seed, pop);
+        case AlgorithmType::IslandModel:
+            return runIslandModel(fitness, 4, std::max<std::size_t>(10, pop / 4), dim, iters, b, seed);
+        case AlgorithmType::SimulatedAnnealing:
+            return runSimulatedAnnealing(fitness, dim, iters, b, 100.0, 0.95, seed);
+        case AlgorithmType::HillClimbing:
+            return runHillClimbing(fitness, dim, iters, b, 0.02, 2, seed);
+        case AlgorithmType::DynamicGeneticAlgorithm:
+            return runDynamicGa(fitness, dim, iters, b, pop, seed);
+        case AlgorithmType::ConstrainedOptimization:
+            return runConstrainedOptimization(fitness, {}, dim, iters, b, pop, seed);
         default:
             return runPso(fitness, ga::pso::PsoVariant::GlobalBest, dim, iters, b, seed, pop);
     }

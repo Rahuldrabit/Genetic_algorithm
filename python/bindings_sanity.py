@@ -445,6 +445,125 @@ def main() -> None:
     res_graph_aco = ga.run_graph_aco(graph, ants=5, iterations=3)
     assert len(res_graph_aco.best_tour) == graph.size
 
+    # 1. Island Model (Distributed GA)
+    island_cfg = ga.IslandConfig()
+    island_cfg.num_islands = 2
+    island_cfg.island_population_size = 15
+    island_cfg.iterations = 5
+    island_cfg.topology = ga.IslandTopology.Ring
+    island_cfg.search = search
+    island_opt = ga.IslandModelOptimizer(island_cfg)
+    res_island = island_opt.optimize(sphere_fitness)
+    assert len(res_island.best_solution) == 3
+    assert res_island.best_fitness > 0.0
+
+    res_island_runner = ga.run_island_model(sphere_fitness, num_islands=2, island_population_size=10, dimension=3, iterations=5)
+    assert len(res_island_runner.best_solution) == 3
+
+    # 2. Simpler Real-Time Heuristics (SA, Hill Climbing)
+    sa_cfg = ga.SimulatedAnnealingConfig()
+    sa_cfg.search = search
+    sa_cfg.initial_temperature = 50.0
+    sa_cfg.cooling_rate = 0.90
+    sa_opt = ga.SimulatedAnnealingOptimizer(sa_cfg)
+    res_sa = sa_opt.optimize(sphere_fitness)
+    assert len(res_sa.best_solution) == 3
+
+    res_sa_runner = ga.run_simulated_annealing(sphere_fitness, dimension=3, iterations=20)
+    assert len(res_sa_runner.best_solution) == 3
+
+    hc_cfg = ga.HillClimbingConfig()
+    hc_cfg.search = search
+    hc_cfg.step_size = 0.05
+    hc_cfg.restarts = 1
+    hc_opt = ga.HillClimbingOptimizer(hc_cfg)
+    res_hc = hc_opt.optimize(sphere_fitness)
+    assert len(res_hc.best_solution) == 3
+
+    res_hc_runner = ga.run_hill_climbing(sphere_fitness, dimension=3, iterations=20)
+    assert len(res_hc_runner.best_solution) == 3
+
+    # 3. Dynamic GA
+    dyn_cfg = ga.DynamicGAConfig()
+    dyn_cfg.search = search
+    dyn_cfg.strategy = ga.DynamicStrategy.Hybrid
+    dyn_opt = ga.DynamicGAOptimizer(dyn_cfg)
+    res_dyn = dyn_opt.optimize(sphere_fitness)
+    assert len(res_dyn.best_solution) == 3
+
+    res_dyn_runner = ga.run_dynamic_ga(sphere_fitness, dimension=3, iterations=10, population_size=15)
+    assert len(res_dyn_runner.best_solution) == 3
+
+    # 4. Constraint-Heavy Handling (Deb, Adaptive Penalty, Constrained Optimizer)
+    dp_feas = ga.DebProfile()
+    dp_feas.fitness = 10.0
+    dp_feas.violation = 0.0
+    dp_feas.is_feasible = True
+
+    dp_infeas = ga.DebProfile()
+    dp_infeas.fitness = 100.0
+    dp_infeas.violation = 2.0
+    dp_infeas.is_feasible = False
+
+    assert ga.deb_is_better(dp_feas, dp_infeas)
+    assert not ga.deb_is_better(dp_infeas, dp_feas)
+
+    pen_handler = ga.AdaptivePenaltyHandler()
+    assert pen_handler.penalty_factor(5) > pen_handler.penalty_factor(0)
+    assert pen_handler.penalize(100.0, 1.0, 5) < 100.0
+
+    constr_cfg = ga.ConstrainedOptimizerConfig()
+    constr_cfg.search = search
+    constr_cfg.use_deb_feasibility = True
+    constr_cfg.use_adaptive_penalty = True
+    c_set = ga.ConstraintSet()
+    c_set.add_hard_constraint(lambda g: sum(g) <= 1.5)
+    constr_opt = ga.ConstrainedOptimizer(constr_cfg, c_set)
+    res_constr = constr_opt.optimize(sphere_fitness)
+    assert len(res_constr.best_solution) == 3
+
+    res_constr_runner = ga.run_constrained_optimization(sphere_fitness, c_set, dimension=3, iterations=10, population_size=15)
+    assert len(res_constr_runner.best_solution) == 3
+    assert sum(res_constr_runner.best_solution) <= 1.5001
+
+    # Python Robustness: All Island Topologies and Policies
+    topologies = [
+        ga.IslandTopology.Ring,
+        ga.IslandTopology.Star,
+        ga.IslandTopology.FullyConnected,
+        ga.IslandTopology.RandomMesh,
+    ]
+    policies = [
+        ga.MigrationPolicy.BestToWorst,
+        ga.MigrationPolicy.RandomToWorst,
+        ga.MigrationPolicy.BestToRandom,
+    ]
+    for topo in topologies:
+        for pol in policies:
+            t_cfg = ga.IslandConfig()
+            t_cfg.search = search
+            t_cfg.num_islands = 2
+            t_cfg.island_population_size = 8
+            t_cfg.iterations = 3
+            t_cfg.topology = topo
+            t_cfg.policy = pol
+            t_res = ga.IslandModelOptimizer(t_cfg).optimize(sphere_fitness)
+            assert len(t_res.best_solution) == 3
+            assert t_res.best_fitness > 0.0
+
+    # Python Robustness: Defensive bounds validation exception handling
+    try:
+        ga.run_pso(sphere_fitness, dimension=2, bounds=ga.Bounds(5.0, -5.0))
+        assert False, "Inverted bounds must raise an exception in Python"
+    except (ValueError, RuntimeError):
+        pass
+
+    try:
+        ga.run_pso(sphere_fitness, dimension=0)
+        assert False, "Zero dimension must raise an exception in Python"
+    except (ValueError, RuntimeError):
+        pass
+
     print("python bindings sanity: OK")
 
 

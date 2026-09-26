@@ -190,6 +190,18 @@ if(NOT SKBUILD)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     )
 
+    add_executable(alternatives-advanced-sanity tests/alternatives_advanced_sanity.cc)
+    target_link_libraries(alternatives-advanced-sanity PRIVATE genetic_algorithm)
+    set_target_properties(alternatives-advanced-sanity PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+
+    add_executable(system-robustness-stress-test tests/system_robustness_stress_test.cc)
+    target_link_libraries(system-robustness-stress-test PRIVATE genetic_algorithm)
+    set_target_properties(system-robustness-stress-test PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+
     add_test(NAME operators-sanity COMMAND operators-sanity)
     add_test(NAME nsga2-sanity COMMAND nsga2-sanity)
     add_test(NAME nsga3-sanity COMMAND nsga3-sanity)
@@ -200,6 +212,8 @@ if(NOT SKBUILD)
     add_test(NAME representations-core-sanity COMMAND representations-core-sanity)
     add_test(NAME metaheuristics-sanity COMMAND metaheuristics-sanity)
     add_test(NAME metaheuristics-extended-sanity COMMAND metaheuristics-extended-sanity)
+    add_test(NAME alternatives-advanced-sanity COMMAND alternatives-advanced-sanity)
+    add_test(NAME system-robustness-stress-test COMMAND system-robustness-stress-test)
     add_test(NAME simple-ga-test COMMAND simple-ga-test --auto)
 
     # Benchmark suite
@@ -222,38 +236,37 @@ endif()
 # ---------------------------------------------------------------- Python bindings
 # When building a Python wheel (SKBUILD=ON), Python bindings are required.
 if(SKBUILD)
-    # Manylinux Python distributions used by cibuildwheel do not ship libpython
-    # (Development.Embed / Python3_LIBRARIES). For extension modules we only
-    # need headers + module build info.
-    find_package(Python3 REQUIRED COMPONENTS Interpreter Development.Module)
+    find_package(Python 3.8 REQUIRED COMPONENTS Interpreter Development.Module)
 else()
-    find_package(Python3 COMPONENTS Interpreter Development.Module QUIET)
+    find_package(Python 3.8 COMPONENTS Interpreter Development.Module QUIET)
 endif()
 
-# Try to locate pybind11 via its CMake config (installed via pip or system).
-# scikit-build-core already adds site-packages to CMAKE_PREFIX_PATH, but this
-# extra hint helps with manual CMake builds.
-if(Python3_FOUND)
-    execute_process(
-        COMMAND "${Python3_EXECUTABLE}" -c "import pybind11; print(pybind11.get_cmake_dir())"
-        OUTPUT_VARIABLE _pybind11_cmake_dir
-        OUTPUT_STRIP_TRAILING_WHITESPACE
-        ERROR_QUIET
-    )
-    if(_pybind11_cmake_dir)
-        list(APPEND CMAKE_PREFIX_PATH "${_pybind11_cmake_dir}")
+if(Python_FOUND)
+    # Prefer submodule in ext/nanobind
+    if(EXISTS "${CMAKE_CURRENT_SOURCE_DIR}/ext/nanobind/CMakeLists.txt")
+        add_subdirectory(ext/nanobind)
+        set(nanobind_FOUND TRUE)
+    else()
+        execute_process(
+            COMMAND "${Python_EXECUTABLE}" -c "import nanobind; print(nanobind.cmake_dir())"
+            OUTPUT_VARIABLE _nanobind_cmake_dir
+            OUTPUT_STRIP_TRAILING_WHITESPACE
+            ERROR_QUIET
+        )
+        if(_nanobind_cmake_dir)
+            list(APPEND CMAKE_PREFIX_PATH "${_nanobind_cmake_dir}")
+        endif()
+        if(SKBUILD)
+            find_package(nanobind CONFIG REQUIRED)
+        else()
+            find_package(nanobind CONFIG QUIET)
+        endif()
     endif()
 endif()
 
-if(SKBUILD)
-    find_package(pybind11 CONFIG REQUIRED)
-else()
-    find_package(pybind11 CONFIG QUIET)
-endif()
-
-if(Python3_FOUND AND pybind11_FOUND)
-    # Build the `_core` Python extension module
-    pybind11_add_module(ga_python_module python/ga_bindings.cpp)
+if(Python_FOUND AND nanobind_FOUND)
+    # Build the `_core` Python extension module via nanobind
+    nanobind_add_module(ga_python_module NB_STATIC python/ga_bindings.cpp)
     target_sources(ga_python_module PRIVATE benchmark/ga_benchmark.cc)
     target_link_libraries(ga_python_module PRIVATE genetic_algorithm)
     target_include_directories(ga_python_module PRIVATE ${CMAKE_SOURCE_DIR}/include)
@@ -280,16 +293,16 @@ if(Python3_FOUND AND pybind11_FOUND)
         )
         add_test(
             NAME python-bindings-sanity
-            COMMAND "${Python3_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/python/bindings_sanity.py"
+            COMMAND "${Python_EXECUTABLE}" "${CMAKE_SOURCE_DIR}/python/bindings_sanity.py"
         )
         set_tests_properties(python-bindings-sanity PROPERTIES
             WORKING_DIRECTORY "${CMAKE_SOURCE_DIR}"
             ENVIRONMENT "GA_PYTHON_MODULE_DIR=${CMAKE_BINARY_DIR}/python"
         )
     endif()
-    message(STATUS "Python bindings: ENABLED (pybind11 ${pybind11_VERSION})")
+    message(STATUS "Python bindings: ENABLED (nanobind)")
 else()
-    message(STATUS "Python bindings: DISABLED (requires Python3 + pybind11)")
+    message(STATUS "Python bindings: DISABLED (requires Python + nanobind)")
 endif()
 
 # Add custom targets

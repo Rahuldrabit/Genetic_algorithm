@@ -60,21 +60,7 @@ This is a **highly efficient, production-ready genetic algorithm framework** des
 - **Dimension**: Sublinear scaling with problem difficulty
 - **Generations**: Constant time per generation
 
-### 📊 Framework Comparison
 
-**vs. Other GA Frameworks:**
-
-| Feature | This Framework | DEAP (Python) | GAlib (C++) | ECJ (Java) |
-|---------|----------------|---------------|-------------|------------|
-| **Speed** | ⭐⭐⭐⭐⭐ (Native C++) | ⭐⭐ (Python) | ⭐⭐⭐⭐ | ⭐⭐⭐ |
-| **Operators** | 35+ | 50+ | 30+ | 40+ |
-| **Modern C++** | ✅ C++17 | N/A | ❌ C++98 | N/A |
-| **Python Bindings** | ✅ | Native | ❌ | ❌ |
-| **Build System** | CMake | setup.py | Make | Ant |
-| **Memory Safety** | Smart pointers | GC | Raw pointers | GC |
-| **Extensibility** | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ |
-
-**Verdict**: This framework offers **best-in-class performance** with modern C++ while maintaining **excellent extensibility** and **multi-language support**.
 
 ## Usability for Different Languages
 
@@ -227,11 +213,11 @@ double myFunction(const std::vector<double>& x, int dim) {
 4. **Research prototyping** (easy to test new operators)
 5. **Embedded systems** (compiled C++ library, small footprint)
 
-### ⚠️ Consider Alternatives For:
-1. **Very large populations** (>10,000) - consider distributed GAs
-2. **Real-time constraints** (<1ms per generation) - use simpler heuristics
-3. **Dynamic problems** - consider adaptive GA variants
-4. **Constraint-heavy problems** - use constraint-handling techniques
+### ⚠️ Alternatives & Built-in Specialized Solvers:
+1. **Very large populations** (>10,000): Use the built-in **Island Model GA** (`IslandModelOptimizer` in [include/ga/algorithms/island_model.hpp](file:///d:/Genetic_algorithm/include/ga/algorithms/island_model.hpp) / `ga.run_island_model`) for multi-core coarse-grained distributed evolutionary computation.
+2. **Real-time constraints** (<1ms per generation): Use the built-in **Simulated Annealing** (`SimulatedAnnealingOptimizer` in [include/ga/metaheuristics/simulated_annealing.hpp](file:///d:/Genetic_algorithm/include/ga/metaheuristics/simulated_annealing.hpp)) or **Hill Climbing** (`HillClimbingOptimizer` in [include/ga/metaheuristics/hill_climbing.hpp](file:///d:/Genetic_algorithm/include/ga/metaheuristics/hill_climbing.hpp)) for zero-allocation, ultra-fast single-solution trajectory search.
+3. **Dynamic / Non-stationary problems**: Use **Dynamic GA** (`DynamicGAOptimizer` in [include/ga/adaptive/dynamic_ga.hpp](file:///d:/Genetic_algorithm/include/ga/adaptive/dynamic_ga.hpp) / `ga.run_dynamic_ga`) equipped with Hypermutation, Random Immigrant injection, Diversity monitoring, and Memory archives to handle shifting landscapes.
+4. **Constraint-heavy problems**: Use **Constrained Optimizer** (`ConstrainedOptimizer` in [include/ga/constraints/constrained_optimizer.hpp](file:///d:/Genetic_algorithm/include/ga/constraints/constrained_optimizer.hpp)) incorporating **Deb's Feasibility Rules** ([deb_feasibility.hpp](file:///d:/Genetic_algorithm/include/ga/constraints/deb_feasibility.hpp)), **Adaptive Dynamic Penalties** ([adaptive_penalty.hpp](file:///d:/Genetic_algorithm/include/ga/constraints/adaptive_penalty.hpp)), and **Repair Operators** ([repair_operators.hpp](file:///d:/Genetic_algorithm/include/ga/constraints/repair_operators.hpp)).
 
 ## Performance Tuning Tips
 

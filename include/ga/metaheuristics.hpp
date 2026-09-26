@@ -44,5 +44,23 @@
 #include "ga/hybrid/interleaved_hybrid.hpp"
 #include "ga/hybrid/swarm_genetic_hybrid.hpp"
 
+// Large Population / Distributed Systems
+#include "ga/algorithms/island_model.hpp"
+
+// Real-Time & Fast Heuristics (<1ms)
+#include "ga/metaheuristics/simulated_annealing.hpp"
+#include "ga/metaheuristics/hill_climbing.hpp"
+
+// Adaptive & Dynamic Systems
+#include "ga/adaptive/adaptive_policy.hpp"
+#include "ga/adaptive/dynamic_ga.hpp"
+
+// Constraint-Handling Framework
+#include "ga/constraints/constraints.hpp"
+#include "ga/constraints/deb_feasibility.hpp"
+#include "ga/constraints/adaptive_penalty.hpp"
+#include "ga/constraints/repair_operators.hpp"
+#include "ga/constraints/constrained_optimizer.hpp"
+
 // High-level API Runners
 #include "ga/api/run_optimizers.hpp"
