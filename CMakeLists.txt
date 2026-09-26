@@ -236,9 +236,9 @@ endif()
 # ---------------------------------------------------------------- Python bindings
 # When building a Python wheel (SKBUILD=ON), Python bindings are required.
 if(SKBUILD)
-    find_package(Python 3.8 REQUIRED COMPONENTS Interpreter Development.Module)
+    find_package(Python 3.9 REQUIRED COMPONENTS Interpreter Development.Module)
 else()
-    find_package(Python 3.8 COMPONENTS Interpreter Development.Module QUIET)
+    find_package(Python 3.9 COMPONENTS Interpreter Development.Module QUIET)
 endif()
 
 if(Python_FOUND)
