@@ -15,6 +15,10 @@ except ImportError:
         "GA_PYTHON_MODULE_DIR", os.path.join(repo_root, "build", "python")
     )
     sys.path.insert(0, module_dir)
+    for sub in ("Release", "Debug", "RelWithDebInfo", "MinSizeRel"):
+        cand = os.path.join(module_dir, sub)
+        if os.path.isdir(cand):
+            sys.path.insert(0, cand)
     import genetic_algorithm_lib as ga
 
 
@@ -347,7 +351,99 @@ def main() -> None:
     tracker = ga.ExperimentTracker("sanity")
     tracker.write_config(cfg, os.path.join(out_dir, "python_sanity_config.txt"))
     tracker.write_history_csv(res, os.path.join(out_dir, "python_sanity_history.csv"))
-    ga.export_fitness_curve_csv(res.best_history, res.avg_history, os.path.join(out_dir, "python_sanity_curve.csv"))
+    # New metaheuristics: CLPSO
+    clpso_cfg = ga.ClpsoConfig()
+    clpso_cfg.search = search
+    clpso_opt = ga.ComprehensiveLearningPso(clpso_cfg)
+    clpso_res = clpso_opt.optimize(sphere_fitness)
+    assert len(clpso_res.best_solution) == 3
+
+    # New metaheuristics: GSO
+    gso_variants = [
+        ga.GsoVariant.standard,
+        ga.GsoVariant.adaptive_step,
+        ga.GsoVariant.levy_flight,
+        ga.GsoVariant.multi_modal,
+    ]
+    for gv in gso_variants:
+        gso_cfg = ga.GsoConfig()
+        gso_cfg.search = search
+        gso_cfg.variant = gv
+        gso_res = ga.GlowwormSwarmOptimizer(gso_cfg).optimize(sphere_fitness)
+        assert len(gso_res.best_solution) == 3
+
+    # Shake framework
+    shaked = ga.apply_shake([0.5, 0.5, 0.5], ga.Bounds(-1.0, 1.0), ga.ShakeConfig(), 123)
+    assert len(shaked) == 3
+    shaker = ga.AdaptiveSwarmShaker()
+    assert shaker.stagnation_count == 0
+
+    # Fuzzy subsystem: LinguisticVariable & Mamdani
+    lv = ga.LinguisticVariable("diversity", 0.0, 1.0)
+    lv.add_triangular("low", -0.1, 0.0, 0.5)
+    lv.add_triangular("high", 0.3, 1.0, 1.1)
+    fuzz_res = lv.fuzzify(0.2)
+    assert "low" in fuzz_res
+
+    mamdani = ga.MamdaniSystem()
+    mamdani.add_input("diversity", 0.0, 1.0)
+    mamdani.add_input_triangular("diversity", "low", -0.1, 0.0, 0.5)
+    mamdani.add_input_triangular("diversity", "high", 0.3, 1.0, 1.1)
+    mamdani.add_output("step", 0.0, 1.0)
+    mamdani.add_output_triangular("step", "small", -0.1, 0.0, 0.5)
+    mamdani.add_output_triangular("step", "large", 0.3, 1.0, 1.1)
+    mamdani.add_rule("IF diversity IS low THEN step IS large")
+    mamdani.add_rule("IF diversity IS high THEN step IS small")
+    step_val = mamdani.evaluate_single("step", {"diversity": 0.1})
+    assert 0.0 <= step_val <= 1.0
+
+    # Sugeno system
+    sugeno = ga.SugenoSystem()
+    sugeno.add_input("diversity", 0.0, 1.0)
+    sugeno.add_input_triangular("diversity", "low", -0.1, 0.0, 0.5)
+    sugeno.add_output("step", 0.5)
+    sug_res = sugeno.evaluate_single("step", {"diversity": 0.1})
+    assert isinstance(sug_res, float)
+
+    # FuzzyAlgorithmAdapter & FuzzyAdaptiveCrossover
+    adapter = ga.FuzzyAlgorithmAdapter()
+    sig = adapter.update(state)
+    assert sig.exploration > 0.0
+
+    fx = ga.FuzzyAdaptiveCrossover()
+    fx.update_context(0.5, 0.2)
+
+    # Hybrids
+    interleaved_cfg = ga.InterleavedHybridConfig()
+    interleaved_cfg.search = search
+    interleaved_cfg.epochs = 2
+    interleaved_opt = ga.InterleavedHybridOptimizer(
+        ga.ParticleSwarmOptimizer(pso_cfg),
+        ga.GlowwormSwarmOptimizer(gso_cfg),
+        interleaved_cfg
+    )
+    assert len(interleaved_opt.optimize(sphere_fitness).best_solution) == 3
+
+    swarm_gen_cfg = ga.SwarmGeneticHybridConfig()
+    swarm_gen_cfg.search = search
+    swarm_gen_opt = ga.SwarmGeneticHybridOptimizer(swarm_gen_cfg)
+    assert len(swarm_gen_opt.optimize(sphere_fitness).best_solution) == 3
+
+    # High-level runner functions
+    res_pso = ga.run_pso(sphere_fitness, dimension=3, iterations=5, population_size=10)
+    assert len(res_pso.best_solution) == 3
+
+    res_clpso = ga.run_clpso(sphere_fitness, dimension=3, iterations=5, population_size=10)
+    assert len(res_clpso.best_solution) == 3
+
+    res_gso = ga.run_gso(sphere_fitness, dimension=3, iterations=5, population_size=10)
+    assert len(res_gso.best_solution) == 3
+
+    res_acor = ga.run_continuous_aco(sphere_fitness, dimension=3, iterations=5, archive_size=10)
+    assert len(res_acor.best_solution) == 3
+
+    res_graph_aco = ga.run_graph_aco(graph, ants=5, iterations=3)
+    assert len(res_graph_aco.best_tour) == graph.size
 
     print("python bindings sanity: OK")
 

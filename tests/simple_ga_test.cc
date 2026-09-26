@@ -81,7 +81,7 @@
 
 
 // Include our custom headers
-#include "simple-GA-Test/fitness-function.h"
+#include "test_helpers/fitness-function.h"
 
 // Simple GA configuration structure
 struct GAConfig {
@@ -798,14 +798,38 @@ void runGATests(const std::string& crossoverType, const std::string& mutationTyp
 }
 
 // Main function for testing
-int main() {
+int main(int argc, char* argv[]) {
     std::string representationType, crossoverType, mutationType, selectionType;
+    bool interactive = true;
+
+    if (argc >= 5) {
+        representationType = argv[1];
+        crossoverType = argv[2];
+        mutationType = argv[3];
+        selectionType = argv[4];
+        interactive = false;
+    } else if (argc > 1) {
+        std::string flag = argv[1];
+        if (flag == "--auto" || flag == "--test" || flag == "--default" || flag == "-a") {
+            representationType = "real_valued";
+            crossoverType = "blend";
+            mutationType = "gaussian";
+            selectionType = "tournament";
+            interactive = false;
+        }
+    }
 
     std::cout << "=== SIMPLE GENETIC ALGORITHM PIPELINE ===" << std::endl;
     
-    // First ask for representation type
-    std::cout << "Enter Representation type (binary, real_valued, integer, permutation): ";
-    std::getline(std::cin, representationType);
+    if (interactive) {
+        // First ask for representation type
+        std::cout << "Enter Representation type (binary, real_valued, integer, permutation): ";
+        if (!std::getline(std::cin, representationType) || representationType.empty()) {
+            std::cout << "Non-interactive / empty input detected. Defaulting to real_valued." << std::endl;
+            representationType = "real_valued";
+            interactive = false;
+        }
+    }
 
     GAConfig::RepresentationType repType = GAConfig::REAL_VALUED; // default
     if (representationType == "binary") {
@@ -878,12 +902,19 @@ int main() {
         std::cout << std::endl;
     } else {
         std::cerr << "Invalid representation type. Defaulting to Real-valued." << std::endl;
+        representationType = "real_valued";
         repType = GAConfig::REAL_VALUED;
     }
     
     // input crossover type
-    std::cout << "Enter Crossover type: ";
-    std::getline(std::cin, crossoverType);
+    if (interactive) {
+        std::cout << "Enter Crossover type: ";
+        if (!std::getline(std::cin, crossoverType) || crossoverType.empty()) {
+            crossoverType = "blend";
+        }
+    } else if (crossoverType.empty()) {
+        crossoverType = "blend";
+    }
 
     // Validate crossover type against representation
     if (!validateCrossoverForRepresentation(repType, crossoverType)) {
@@ -894,8 +925,14 @@ int main() {
     std::cout << "Using " << crossoverType << " Crossover" << std::endl;
 
     // input mutation type
-    std::cout << "Enter Mutation type: ";
-    std::getline(std::cin, mutationType);
+    if (interactive) {
+        std::cout << "Enter Mutation type: ";
+        if (!std::getline(std::cin, mutationType) || mutationType.empty()) {
+            mutationType = "gaussian";
+        }
+    } else if (mutationType.empty()) {
+        mutationType = "gaussian";
+    }
 
     // Validate mutation type against representation
     if (!validateMutationForRepresentation(repType, mutationType)) {
@@ -906,8 +943,14 @@ int main() {
     std::cout << "Using " << mutationType << " Mutation" << std::endl;
     
     // input selection type
-    std::cout << "Enter Selection (tournament, roulette) type: ";
-    std::getline(std::cin, selectionType);
+    if (interactive) {
+        std::cout << "Enter Selection (tournament, roulette) type: ";
+        if (!std::getline(std::cin, selectionType) || selectionType.empty()) {
+            selectionType = "tournament";
+        }
+    } else if (selectionType.empty()) {
+        selectionType = "tournament";
+    }
     
     if (selectionType == "tournament" || selectionType == "roulette") {
         std::cout << "Using " << selectionType << " Selection" << std::endl;

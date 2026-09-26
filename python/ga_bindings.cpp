@@ -635,6 +635,335 @@ PYBIND11_MODULE(_core, m) {
              py::arg("fitness"),
              py::arg("seeds") = ga::metaheuristics::SeedPopulation{});
 
+    // ------------------------------------------------------------- CLPSO
+    py::class_<ga::pso::ClpsoConfig>(m, "ClpsoConfig")
+        .def(py::init<>())
+        .def_readwrite("search", &ga::pso::ClpsoConfig::search)
+        .def_readwrite("inertia", &ga::pso::ClpsoConfig::inertia)
+        .def_readwrite("learning_rate", &ga::pso::ClpsoConfig::learningRate)
+        .def_readwrite("velocity_clamp", &ga::pso::ClpsoConfig::velocityClamp)
+        .def_readwrite("refresh_gap", &ga::pso::ClpsoConfig::refreshGap)
+        .def_property("controller",
+                      [](const ga::pso::ClpsoConfig& config) {
+                          return mutableController(config.controller);
+                      },
+                      [](ga::pso::ClpsoConfig& config,
+                         std::shared_ptr<ga::metaheuristics::IAdaptiveController> controller) {
+                          config.controller = std::move(controller);
+                      });
+
+    py::class_<ga::pso::ComprehensiveLearningPso,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(m, "ComprehensiveLearningPso")
+        .def(py::init<ga::pso::ClpsoConfig>(), py::arg("config") = ga::pso::ClpsoConfig{})
+        .def("name", &ga::pso::ComprehensiveLearningPso::name)
+        .def("optimize",
+             [](ga::pso::ComprehensiveLearningPso& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{})
+        .def_property_readonly("config", [](const ga::pso::ComprehensiveLearningPso& self) {
+            return self.config();
+        });
+
+    // --------------------------------------------------------------- GSO
+    py::enum_<ga::gso::GsoVariant>(m, "GsoVariant")
+        .value("standard", ga::gso::GsoVariant::Standard)
+        .value("adaptive_step", ga::gso::GsoVariant::AdaptiveStep)
+        .value("levy_flight", ga::gso::GsoVariant::LevyFlight)
+        .value("multi_modal", ga::gso::GsoVariant::MultiModal);
+
+    py::class_<ga::gso::GsoConfig>(m, "GsoConfig")
+        .def(py::init<>())
+        .def_readwrite("search", &ga::gso::GsoConfig::search)
+        .def_readwrite("variant", &ga::gso::GsoConfig::variant)
+        .def_readwrite("rho", &ga::gso::GsoConfig::rho)
+        .def_readwrite("gamma", &ga::gso::GsoConfig::gamma)
+        .def_readwrite("beta", &ga::gso::GsoConfig::beta)
+        .def_readwrite("step_size", &ga::gso::GsoConfig::stepSize)
+        .def_readwrite("min_step_size", &ga::gso::GsoConfig::minStepSize)
+        .def_readwrite("max_step_size", &ga::gso::GsoConfig::maxStepSize)
+        .def_readwrite("sensor_range", &ga::gso::GsoConfig::sensorRange)
+        .def_readwrite("initial_sensor_range", &ga::gso::GsoConfig::initialSensorRange)
+        .def_readwrite("target_neighbors", &ga::gso::GsoConfig::targetNeighbors)
+        .def_readwrite("initial_luciferin", &ga::gso::GsoConfig::initialLuciferin)
+        .def_readwrite("niche_radius", &ga::gso::GsoConfig::nicheRadius)
+        .def_property("controller",
+                      [](const ga::gso::GsoConfig& config) {
+                          return mutableController(config.controller);
+                      },
+                      [](ga::gso::GsoConfig& config,
+                         std::shared_ptr<ga::metaheuristics::IAdaptiveController> controller) {
+                          config.controller = std::move(controller);
+                      });
+
+    py::class_<ga::gso::GlowwormSwarmOptimizer,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(m, "GlowwormSwarmOptimizer")
+        .def(py::init<ga::gso::GsoConfig>(), py::arg("config") = ga::gso::GsoConfig{})
+        .def("name", &ga::gso::GlowwormSwarmOptimizer::name)
+        .def("optimize",
+             [](ga::gso::GlowwormSwarmOptimizer& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{})
+        .def_property_readonly("config", [](const ga::gso::GlowwormSwarmOptimizer& self) {
+            return self.config();
+        });
+
+    // ------------------------------------------------------------- Shake
+    py::enum_<ga::shake::ShakeType>(m, "ShakeType")
+        .value("uniform", ga::shake::ShakeType::Uniform)
+        .value("gaussian", ga::shake::ShakeType::Gaussian)
+        .value("cauchy", ga::shake::ShakeType::Cauchy)
+        .value("levy_flight", ga::shake::ShakeType::LevyFlight)
+        .value("opposition", ga::shake::ShakeType::Opposition)
+        .value("partial_dimension", ga::shake::ShakeType::PartialDimension);
+
+    py::class_<ga::shake::ShakeConfig>(m, "ShakeConfig")
+        .def(py::init<>())
+        .def_readwrite("type", &ga::shake::ShakeConfig::type)
+        .def_readwrite("intensity", &ga::shake::ShakeConfig::intensity)
+        .def_readwrite("probability", &ga::shake::ShakeConfig::probability)
+        .def_readwrite("levy_beta", &ga::shake::ShakeConfig::levyBeta)
+        .def_readwrite("partial_dims", &ga::shake::ShakeConfig::partialDims)
+        .def_readwrite("retain_best", &ga::shake::ShakeConfig::retainBest);
+
+    py::class_<ga::shake::AdaptiveShakerConfig>(m, "AdaptiveShakerConfig")
+        .def(py::init<>())
+        .def_readwrite("shake", &ga::shake::AdaptiveShakerConfig::shake)
+        .def_readwrite("stagnation_threshold", &ga::shake::AdaptiveShakerConfig::stagnationThreshold)
+        .def_readwrite("diversity_threshold", &ga::shake::AdaptiveShakerConfig::diversityThreshold)
+        .def_readwrite("fraction_to_shake", &ga::shake::AdaptiveShakerConfig::fractionToShake);
+
+    py::class_<ga::shake::AdaptiveSwarmShaker>(m, "AdaptiveSwarmShaker")
+        .def(py::init<ga::shake::AdaptiveShakerConfig>(), py::arg("config") = ga::shake::AdaptiveShakerConfig{})
+        .def("reset", &ga::shake::AdaptiveSwarmShaker::reset)
+        .def_property_readonly("config", &ga::shake::AdaptiveSwarmShaker::config)
+        .def_property_readonly("stagnation_count", &ga::shake::AdaptiveSwarmShaker::stagnationCount)
+        .def_property_readonly("last_diversity", &ga::shake::AdaptiveSwarmShaker::lastDiversity);
+
+    m.def("apply_shake", [](std::vector<double> solution, const ga::Bounds& bounds, const ga::shake::ShakeConfig& cfg, unsigned int seed) {
+        std::mt19937 rng(seed);
+        ga::shake::applyShake(solution, bounds, cfg, rng);
+        return solution;
+    }, py::arg("solution"), py::arg("bounds"), py::arg("config") = ga::shake::ShakeConfig{}, py::arg("seed") = 42);
+
+    // ------------------------------------------------------------- Fuzzy
+    py::class_<ga::fuzzy::LinguisticVariable>(m, "LinguisticVariable")
+        .def(py::init([](std::string name, double minVal, double maxVal) {
+            return ga::fuzzy::LinguisticVariable(std::move(name), ga::fuzzy::Interval{minVal, maxVal});
+        }), py::arg("name"), py::arg("min_val"), py::arg("max_val"))
+        .def("name", &ga::fuzzy::LinguisticVariable::name)
+        .def("add_triangular", [](ga::fuzzy::LinguisticVariable& self, const std::string& term, double a, double b, double c) {
+            self.addTerm(term, ga::fuzzy::makeTriangularMF(a, b, c));
+        }, py::arg("term"), py::arg("a"), py::arg("b"), py::arg("c"))
+        .def("add_trapezoidal", [](ga::fuzzy::LinguisticVariable& self, const std::string& term, double a, double b, double c, double d) {
+            self.addTerm(term, ga::fuzzy::makeTrapezoidalMF(a, b, c, d));
+        }, py::arg("term"), py::arg("a"), py::arg("b"), py::arg("c"), py::arg("d"))
+        .def("add_gaussian", [](ga::fuzzy::LinguisticVariable& self, const std::string& term, double mean, double sigma) {
+            self.addTerm(term, ga::fuzzy::makeGaussianMF(mean, sigma));
+        }, py::arg("term"), py::arg("mean"), py::arg("sigma"))
+        .def("fuzzify", &ga::fuzzy::LinguisticVariable::fuzzify, py::arg("crisp_value"))
+        .def("evaluate_term", &ga::fuzzy::LinguisticVariable::evaluateTerm, py::arg("term"), py::arg("crisp_value"));
+
+    py::class_<ga::fuzzy::MamdaniSystem>(m, "MamdaniSystem")
+        .def(py::init<>())
+        .def("add_input", &ga::fuzzy::MamdaniSystem::addInput, py::arg("name"), py::arg("min_val"), py::arg("max_val"))
+        .def("add_input_triangular", [](ga::fuzzy::MamdaniSystem& self, const std::string& varName, const std::string& term, double a, double b, double c) {
+            self.addInputTerm(varName, term, ga::fuzzy::makeTriangularMF(a, b, c));
+        }, py::arg("var_name"), py::arg("term"), py::arg("a"), py::arg("b"), py::arg("c"))
+        .def("add_input_trapezoidal", [](ga::fuzzy::MamdaniSystem& self, const std::string& varName, const std::string& term, double a, double b, double c, double d) {
+            self.addInputTerm(varName, term, ga::fuzzy::makeTrapezoidalMF(a, b, c, d));
+        }, py::arg("var_name"), py::arg("term"), py::arg("a"), py::arg("b"), py::arg("c"), py::arg("d"))
+        .def("add_input_gaussian", [](ga::fuzzy::MamdaniSystem& self, const std::string& varName, const std::string& term, double mean, double sigma) {
+            self.addInputTerm(varName, term, ga::fuzzy::makeGaussianMF(mean, sigma));
+        }, py::arg("var_name"), py::arg("term"), py::arg("mean"), py::arg("sigma"))
+        .def("add_output", &ga::fuzzy::MamdaniSystem::addOutput, py::arg("name"), py::arg("min_val"), py::arg("max_val"))
+        .def("add_output_triangular", [](ga::fuzzy::MamdaniSystem& self, const std::string& varName, const std::string& term, double a, double b, double c) {
+            self.addOutputTerm(varName, term, ga::fuzzy::makeTriangularMF(a, b, c));
+        }, py::arg("var_name"), py::arg("term"), py::arg("a"), py::arg("b"), py::arg("c"))
+        .def("add_output_trapezoidal", [](ga::fuzzy::MamdaniSystem& self, const std::string& varName, const std::string& term, double a, double b, double c, double d) {
+            self.addOutputTerm(varName, term, ga::fuzzy::makeTrapezoidalMF(a, b, c, d));
+        }, py::arg("var_name"), py::arg("term"), py::arg("a"), py::arg("b"), py::arg("c"), py::arg("d"))
+        .def("add_rule", py::overload_cast<const std::string&>(&ga::fuzzy::MamdaniSystem::addRule), py::arg("rule_string"))
+        .def("evaluate", &ga::fuzzy::MamdaniSystem::evaluate, py::arg("inputs"))
+        .def("evaluate_single", &ga::fuzzy::MamdaniSystem::evaluateSingle, py::arg("output_var"), py::arg("inputs"), py::arg("fallback") = 0.0);
+
+    py::class_<ga::fuzzy::SugenoSystem>(m, "SugenoSystem")
+        .def(py::init<>())
+        .def("add_input", &ga::fuzzy::SugenoSystem::addInput, py::arg("name"), py::arg("min_val"), py::arg("max_val"))
+        .def("add_input_triangular", [](ga::fuzzy::SugenoSystem& self, const std::string& varName, const std::string& term, double a, double b, double c) {
+            self.addInputTerm(varName, term, ga::fuzzy::makeTriangularMF(a, b, c));
+        }, py::arg("var_name"), py::arg("term"), py::arg("a"), py::arg("b"), py::arg("c"))
+        .def("add_output", &ga::fuzzy::SugenoSystem::addOutput, py::arg("name"), py::arg("fallback") = 0.0)
+        .def("evaluate", &ga::fuzzy::SugenoSystem::evaluate, py::arg("inputs"))
+        .def("evaluate_single", &ga::fuzzy::SugenoSystem::evaluateSingle, py::arg("output_var"), py::arg("inputs"), py::arg("fallback") = 0.0);
+
+    py::enum_<ga::fuzzy::FuzzyControllerBackend>(m, "FuzzyControllerBackend")
+        .value("mamdani", ga::fuzzy::FuzzyControllerBackend::Mamdani)
+        .value("sugeno", ga::fuzzy::FuzzyControllerBackend::Sugeno);
+
+    py::class_<ga::fuzzy::FuzzyAlgorithmAdapterConfig>(m, "FuzzyAlgorithmAdapterConfig")
+        .def(py::init<>())
+        .def_readwrite("backend", &ga::fuzzy::FuzzyAlgorithmAdapterConfig::backend)
+        .def_readwrite("improvement_scale", &ga::fuzzy::FuzzyAlgorithmAdapterConfig::improvementScale)
+        .def_readwrite("enable_fcm", &ga::fuzzy::FuzzyAlgorithmAdapterConfig::enableFcm)
+        .def_readwrite("fcm_clusters", &ga::fuzzy::FuzzyAlgorithmAdapterConfig::fcmClusters);
+
+    py::class_<ga::fuzzy::FuzzyAlgorithmAdapter,
+               ga::metaheuristics::IAdaptiveController,
+               py::smart_holder>(m, "FuzzyAlgorithmAdapter")
+        .def(py::init<ga::fuzzy::FuzzyAlgorithmAdapterConfig>(),
+             py::arg("config") = ga::fuzzy::FuzzyAlgorithmAdapterConfig{})
+        .def(py::init<ga::fuzzy::MamdaniSystem>(), py::arg("mamdani"))
+        .def(py::init<ga::fuzzy::SugenoSystem>(), py::arg("sugeno"))
+        .def("update", &ga::fuzzy::FuzzyAlgorithmAdapter::update, py::arg("state"))
+        .def("last_shake_intensity", &ga::fuzzy::FuzzyAlgorithmAdapter::lastShakeIntensity)
+        .def_property_readonly("config", &ga::fuzzy::FuzzyAlgorithmAdapter::config);
+
+    // ----------------------------------------------------------- Hybrids
+    py::class_<ga::hybrid::InterleavedHybridConfig>(m, "InterleavedHybridConfig")
+        .def(py::init<>())
+        .def_readwrite("search", &ga::hybrid::InterleavedHybridConfig::search)
+        .def_readwrite("epochs", &ga::hybrid::InterleavedHybridConfig::epochs)
+        .def_readwrite("stage1_iterations", &ga::hybrid::InterleavedHybridConfig::stage1Iterations)
+        .def_readwrite("stage2_iterations", &ga::hybrid::InterleavedHybridConfig::stage2Iterations)
+        .def_readwrite("migrated_elite_count", &ga::hybrid::InterleavedHybridConfig::migratedEliteCount);
+
+    py::class_<ga::hybrid::InterleavedHybridOptimizer,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(m, "InterleavedHybridOptimizer")
+        .def(py::init<std::shared_ptr<ga::metaheuristics::IContinuousOptimizer>,
+                      std::shared_ptr<ga::metaheuristics::IContinuousOptimizer>,
+                      ga::hybrid::InterleavedHybridConfig>(),
+             py::arg("stage1"), py::arg("stage2"), py::arg("config") = ga::hybrid::InterleavedHybridConfig{})
+        .def("name", &ga::hybrid::InterleavedHybridOptimizer::name)
+        .def("optimize",
+             [](ga::hybrid::InterleavedHybridOptimizer& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{});
+
+    py::class_<ga::hybrid::SwarmGeneticHybridConfig>(m, "SwarmGeneticHybridConfig")
+        .def(py::init<>())
+        .def_readwrite("search", &ga::hybrid::SwarmGeneticHybridConfig::search)
+        .def_readwrite("crossover_probability", &ga::hybrid::SwarmGeneticHybridConfig::crossoverProbability)
+        .def_readwrite("mutation_probability", &ga::hybrid::SwarmGeneticHybridConfig::mutationProbability)
+        .def_readwrite("inertia", &ga::hybrid::SwarmGeneticHybridConfig::inertia)
+        .def_readwrite("cognitive", &ga::hybrid::SwarmGeneticHybridConfig::cognitive)
+        .def_readwrite("social", &ga::hybrid::SwarmGeneticHybridConfig::social)
+        .def_readwrite("shake", &ga::hybrid::SwarmGeneticHybridConfig::shake);
+
+    py::class_<ga::hybrid::SwarmGeneticHybridOptimizer,
+               ga::metaheuristics::IContinuousOptimizer,
+               py::smart_holder>(m, "SwarmGeneticHybridOptimizer")
+        .def(py::init<ga::hybrid::SwarmGeneticHybridConfig>(),
+             py::arg("config") = ga::hybrid::SwarmGeneticHybridConfig{})
+        .def("name", &ga::hybrid::SwarmGeneticHybridOptimizer::name)
+        .def("optimize",
+             [](ga::hybrid::SwarmGeneticHybridOptimizer& self,
+                py::function fitness,
+                const ga::metaheuristics::SeedPopulation& seeds) {
+                 return optimizeFromPython(self, std::move(fitness), seeds);
+             },
+             py::arg("fitness"),
+             py::arg("seeds") = ga::metaheuristics::SeedPopulation{})
+        .def_property_readonly("config", [](const ga::hybrid::SwarmGeneticHybridOptimizer& self) {
+            return self.config();
+        });
+
+    // ---------------------------------------------------- High-level runners
+    m.def("run_pso", [](py::function fitness,
+                        ga::pso::PsoVariant variant,
+                        std::size_t dimension,
+                        std::size_t iterations,
+                        ga::Bounds bounds,
+                        unsigned seed,
+                        std::size_t population_size) {
+        ga::Fitness wrapped = wrapPythonFitness(std::move(fitness));
+        py::gil_scoped_release release;
+        return ga::api::runPso(wrapped, variant, dimension, iterations, bounds, seed, population_size);
+    }, py::arg("fitness"),
+       py::arg("variant") = ga::pso::PsoVariant::GlobalBest,
+       py::arg("dimension") = 10,
+       py::arg("iterations") = 100,
+       py::arg("bounds") = ga::Bounds{-5.12, 5.12},
+       py::arg("seed") = 0,
+       py::arg("population_size") = 50);
+
+    m.def("run_clpso", [](py::function fitness,
+                          std::size_t dimension,
+                          std::size_t iterations,
+                          ga::Bounds bounds,
+                          unsigned seed,
+                          std::size_t population_size) {
+        ga::Fitness wrapped = wrapPythonFitness(std::move(fitness));
+        py::gil_scoped_release release;
+        return ga::api::runClpso(wrapped, dimension, iterations, bounds, seed, population_size);
+    }, py::arg("fitness"),
+       py::arg("dimension") = 10,
+       py::arg("iterations") = 100,
+       py::arg("bounds") = ga::Bounds{-5.12, 5.12},
+       py::arg("seed") = 0,
+       py::arg("population_size") = 50);
+
+    m.def("run_gso", [](py::function fitness,
+                        ga::gso::GsoVariant variant,
+                        std::size_t dimension,
+                        std::size_t iterations,
+                        ga::Bounds bounds,
+                        unsigned seed,
+                        std::size_t population_size) {
+        ga::Fitness wrapped = wrapPythonFitness(std::move(fitness));
+        py::gil_scoped_release release;
+        return ga::api::runGso(wrapped, variant, dimension, iterations, bounds, seed, population_size);
+    }, py::arg("fitness"),
+       py::arg("variant") = ga::gso::GsoVariant::Standard,
+       py::arg("dimension") = 10,
+       py::arg("iterations") = 100,
+       py::arg("bounds") = ga::Bounds{-5.12, 5.12},
+       py::arg("seed") = 0,
+       py::arg("population_size") = 50);
+
+    m.def("run_continuous_aco", [](py::function fitness,
+                                   std::size_t dimension,
+                                   std::size_t iterations,
+                                   ga::Bounds bounds,
+                                   unsigned seed,
+                                   std::size_t archive_size) {
+        ga::Fitness wrapped = wrapPythonFitness(std::move(fitness));
+        py::gil_scoped_release release;
+        return ga::api::runContinuousAco(wrapped, dimension, iterations, bounds, seed, archive_size);
+    }, py::arg("fitness"),
+       py::arg("dimension") = 10,
+       py::arg("iterations") = 100,
+       py::arg("bounds") = ga::Bounds{-5.12, 5.12},
+       py::arg("seed") = 0,
+       py::arg("archive_size") = 50);
+
+    m.def("run_graph_aco", [](const ga::aco::DenseGraph& graph,
+                              ga::aco::AntColonyVariant variant,
+                              std::size_t ants,
+                              std::size_t iterations,
+                              unsigned seed) {
+        py::gil_scoped_release release;
+        return ga::api::runGraphAco(graph, variant, ants, iterations, seed);
+    }, py::arg("graph"),
+       py::arg("variant") = ga::aco::AntColonyVariant::AntSystem,
+       py::arg("ants") = 30,
+       py::arg("iterations") = 100,
+       py::arg("seed") = 0);
+
     // ---------------------------------------------------------- Core abstractions
     py::class_<ga::Evaluation>(m, "Evaluation", "Evaluation/objective record")
         .def(py::init<>())
@@ -1361,6 +1690,18 @@ PYBIND11_MODULE(_core, m) {
         .def_property_readonly("error_count", &CrossoverOperator::getErrorCount)
         .def_property_readonly("error_rate", &CrossoverOperator::getErrorRate)
         .def("reset_statistics", &CrossoverOperator::resetStatistics);
+
+    py::class_<ga::fuzzy::FuzzyAdaptiveCrossoverConfig>(m, "FuzzyAdaptiveCrossoverConfig")
+        .def(py::init<>())
+        .def_readwrite("search_diameter", &ga::fuzzy::FuzzyAdaptiveCrossoverConfig::searchDiameter)
+        .def_readwrite("default_alpha", &ga::fuzzy::FuzzyAdaptiveCrossoverConfig::defaultAlpha)
+        .def_readwrite("default_eta_c", &ga::fuzzy::FuzzyAdaptiveCrossoverConfig::defaultEtaC)
+        .def_readwrite("seed", &ga::fuzzy::FuzzyAdaptiveCrossoverConfig::seed);
+
+    py::class_<ga::fuzzy::FuzzyAdaptiveCrossover, CrossoverOperator, py::smart_holder>(m, "FuzzyAdaptiveCrossover")
+        .def(py::init<ga::fuzzy::FuzzyAdaptiveCrossoverConfig>(), py::arg("config") = ga::fuzzy::FuzzyAdaptiveCrossoverConfig{})
+        .def("update_context", &ga::fuzzy::FuzzyAdaptiveCrossover::updateContext, py::arg("diversity"), py::arg("relative_gen"))
+        .def_property_readonly("config", &ga::fuzzy::FuzzyAdaptiveCrossover::config);
 
     py::class_<OnePointCrossover, CrossoverOperator, py::smart_holder>(m, "OnePointCrossover")
         .def(py::init([](unsigned seed) {

@@ -207,10 +207,10 @@ file(GLOB_RECURSE CROSSOVER_SOURCES "crossover/*.cc" "custom_crossover.cc")
 ### Adding a New Fitness Function
 
 ```cpp
-// In simple-GA-Test/fitness-function.h
+// In tests/test_helpers/fitness-function.h
 double myFunction(const std::vector<double>& x, int dim);
 
-// In simple-GA-Test/fitness-function.cc
+// In tests/test_helpers/fitness-function.cc
 double myFunction(const std::vector<double>& x, int dim) {
     double result = 0.0;
     // Your function implementation

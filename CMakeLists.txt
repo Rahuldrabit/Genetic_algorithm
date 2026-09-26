@@ -10,12 +10,15 @@ set(CMAKE_CXX_STANDARD_REQUIRED ON)
 # Include directories
 include_directories(${CMAKE_SOURCE_DIR})
 include_directories(${CMAKE_SOURCE_DIR}/include)
+include_directories(${CMAKE_SOURCE_DIR}/include/ga/crossover)
+include_directories(${CMAKE_SOURCE_DIR}/include/ga/mutation)
+include_directories(${CMAKE_SOURCE_DIR}/include/ga/selection)
 
 # Find source files
-file(GLOB_RECURSE CROSSOVER_SOURCES "crossover/*.cc")
-file(GLOB_RECURSE MUTATION_SOURCES "mutation/*.cc")
-file(GLOB_RECURSE SELECTION_SOURCES "selection-operator/*.cc")
-file(GLOB_RECURSE FITNESS_SOURCES "simple-GA-Test/fitness-function.cc")
+file(GLOB_RECURSE CROSSOVER_SOURCES "src/crossover/*.cc")
+file(GLOB_RECURSE MUTATION_SOURCES "src/mutation/*.cc")
+file(GLOB_RECURSE SELECTION_SOURCES "src/selection/*.cc")
+file(GLOB_RECURSE FITNESS_SOURCES "tests/test_helpers/fitness-function.cc")
 set(CORE_SOURCES
     src/genetic_algorithm.cpp
     src/c_api.cpp
@@ -54,10 +57,11 @@ if(NOT SKBUILD)
 
     # Main executable
     add_executable(simple-ga-test
-        simple-ga-test.cc
+        tests/simple_ga_test.cc
         ${FITNESS_SOURCES}
     )
     target_link_libraries(simple-ga-test PRIVATE genetic_algorithm)
+    target_include_directories(simple-ga-test PRIVATE tests)
 
     # Set target properties
     set_target_properties(simple-ga-test PROPERTIES
@@ -119,6 +123,12 @@ if(NOT SKBUILD)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
     )
 
+    add_executable(ga-metaheuristics-complete-demo examples/metaheuristics_complete_demo.cpp)
+    target_link_libraries(ga-metaheuristics-complete-demo PRIVATE genetic_algorithm)
+    set_target_properties(ga-metaheuristics-complete-demo PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/examples"
+    )
+
     # Tests (lightweight sanity checks)
     add_executable(operators-sanity tests/operators_sanity.cc)
     target_link_libraries(operators-sanity PRIVATE genetic_algorithm)
@@ -174,6 +184,12 @@ if(NOT SKBUILD)
         RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
     )
 
+    add_executable(metaheuristics-extended-sanity tests/metaheuristics_extended_sanity.cc)
+    target_link_libraries(metaheuristics-extended-sanity PRIVATE genetic_algorithm)
+    set_target_properties(metaheuristics-extended-sanity PROPERTIES
+        RUNTIME_OUTPUT_DIRECTORY "${CMAKE_BINARY_DIR}/tests"
+    )
+
     add_test(NAME operators-sanity COMMAND operators-sanity)
     add_test(NAME nsga2-sanity COMMAND nsga2-sanity)
     add_test(NAME nsga3-sanity COMMAND nsga3-sanity)
@@ -183,6 +199,8 @@ if(NOT SKBUILD)
     add_test(NAME advanced-features-sanity COMMAND advanced-features-sanity)
     add_test(NAME representations-core-sanity COMMAND representations-core-sanity)
     add_test(NAME metaheuristics-sanity COMMAND metaheuristics-sanity)
+    add_test(NAME metaheuristics-extended-sanity COMMAND metaheuristics-extended-sanity)
+    add_test(NAME simple-ga-test COMMAND simple-ga-test --auto)
 
     # Benchmark suite
     add_executable(ga-benchmark

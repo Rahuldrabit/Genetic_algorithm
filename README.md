@@ -302,8 +302,8 @@ For a detailed analysis of the framework's architecture, efficiency, and usabili
 
 ### Adding New Fitness Functions
 
-1. Add declaration to `simple-GA-Test/fitness-function.h`
-2. Implement in `simple-GA-Test/fitness-fuction.cc`
+1. Add declaration to `tests/test_helpers/fitness-function.h`
+2. Implement in `tests/test_helpers/fitness-fuction.cc`
 3. Add to the `GAConfig::FunctionType` enum
 4. Update the fitness function selection logic
 
