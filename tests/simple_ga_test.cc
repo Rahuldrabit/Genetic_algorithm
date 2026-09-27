@@ -11,73 +11,73 @@
 
 
 // Base crossover functionality
-#include "crossover/base_crossover.h"
+#include "ga/crossover/base_crossover.h"
 
 // Bit-string/Vector crossover operators
-#include "crossover/one_point_crossover.h"
-#include "crossover/two_point_crossover.h"
-#include "crossover/multi_point_crossover.h"
-#include "crossover/uniform_crossover.h"
-#include "crossover/uniform_k_vector_crossover.h"
+#include "ga/crossover/one_point_crossover.h"
+#include "ga/crossover/two_point_crossover.h"
+#include "ga/crossover/multi_point_crossover.h"
+#include "ga/crossover/uniform_crossover.h"
+#include "ga/crossover/uniform_k_vector_crossover.h"
 
 // Real-valued crossover operators
-#include "crossover/blend_crossover.h"
-#include "crossover/simulated_binary_crossover.h"
-#include "crossover/line_recombination.h"
-#include "crossover/intermediate_recombination.h"
+#include "ga/crossover/blend_crossover.h"
+#include "ga/crossover/simulated_binary_crossover.h"
+#include "ga/crossover/line_recombination.h"
+#include "ga/crossover/intermediate_recombination.h"
 
 // Permutation crossover operators
-#include "crossover/cut_and_crossfill_crossover.h"
-#include "crossover/partially_mapped_crossover.h"
-#include "crossover/edge_crossover.h"
-#include "crossover/order_crossover.h"
-#include "crossover/cycle_crossover.h"
+#include "ga/crossover/cut_and_crossfill_crossover.h"
+#include "ga/crossover/partially_mapped_crossover.h"
+#include "ga/crossover/edge_crossover.h"
+#include "ga/crossover/order_crossover.h"
+#include "ga/crossover/cycle_crossover.h"
 
 // Tree-based crossover operators
-#include "crossover/subtree_crossover.h"
+#include "ga/crossover/subtree_crossover.h"
 
 // Specialized crossover operators
-#include "crossover/diploid_recombination.h"
-#include "crossover/differential_evolution_crossover.h"
+#include "ga/crossover/diploid_recombination.h"
+#include "ga/crossover/differential_evolution_crossover.h"
 
 
 // Base mutation functionality
-#include "mutation/base_mutation.h"
+#include "ga/mutation/base_mutation.h"
 
 // Binary representation mutation operators
-#include "mutation/bit_flip_mutation.h"
+#include "ga/mutation/bit_flip_mutation.h"
 
 // Integer representation mutation operators
-#include "mutation/random_resetting_mutation.h"
-#include "mutation/creep_mutation.h"
+#include "ga/mutation/random_resetting_mutation.h"
+#include "ga/mutation/creep_mutation.h"
 
 // Real-valued representation mutation operators
-#include "mutation/uniform_mutation.h"
-#include "mutation/gaussian_mutation.h"
+#include "ga/mutation/uniform_mutation.h"
+#include "ga/mutation/gaussian_mutation.h"
 
 // Permutation representation mutation operators
-#include "mutation/swap_mutation.h"
-#include "mutation/inversion_mutation.h"
-#include "mutation/insert_mutation.h"
-#include "mutation/scramble_mutation.h"
+#include "ga/mutation/swap_mutation.h"
+#include "ga/mutation/inversion_mutation.h"
+#include "ga/mutation/insert_mutation.h"
+#include "ga/mutation/scramble_mutation.h"
 
 // Self-adaptive mutation operators
-#include "mutation/self_adaptive_mutation.h"
+#include "ga/mutation/self_adaptive_mutation.h"
 
 // Variable-length list mutation operators
-#include "mutation/list_mutation.h"
+#include "ga/mutation/list_mutation.h"
 
 
 
 // Base selection operator
-#include "selection-operator/base_selection.h"
+#include "ga/selection/base_selection.h"
 
 // Individual selection operators
-#include "selection-operator/tournament_selection.h"
-#include "selection-operator/roulette_wheel_selection.h"
-#include "selection-operator/rank_selection.h"
-#include "selection-operator/stochastic_universal_sampling.h"
-#include "selection-operator/elitism_selection.h"
+#include "ga/selection/tournament_selection.h"
+#include "ga/selection/roulette_wheel_selection.h"
+#include "ga/selection/rank_selection.h"
+#include "ga/selection/stochastic_universal_sampling.h"
+#include "ga/selection/elitism_selection.h"
 
 
 // Include our custom headers

@@ -6,10 +6,10 @@
 #include <stdexcept>
 
 // Use existing operators
-#include "mutation/gaussian_mutation.h"
-#include "mutation/uniform_mutation.h"
-#include "crossover/one_point_crossover.h"
-#include "crossover/two_point_crossover.h"
+#include "ga/mutation/gaussian_mutation.h"
+#include "ga/mutation/uniform_mutation.h"
+#include "ga/crossover/one_point_crossover.h"
+#include "ga/crossover/two_point_crossover.h"
 
 using namespace std;
 

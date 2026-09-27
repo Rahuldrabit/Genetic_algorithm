@@ -34,8 +34,8 @@ jobs:
         uses: pypa/cibuildwheel@v2.22.0
         env:
           # Keep the matrix explicit and predictable.
-          CIBW_BUILD: "cp38-* cp39-* cp310-* cp311-* cp312-*"
-          CIBW_SKIP: "pp* *-musllinux_*"
+          CIBW_BUILD: "cp39-* cp310-* cp311-* cp312-*"
+          CIBW_SKIP: "pp* *-musllinux_* *-win32 *_i686"
           CIBW_TEST_COMMAND: >-
             python -c "import genetic_algorithm_lib as ga; s = ga.SearchConfig(); s.population_size = 6; s.iterations = 2; s.dimension = 2; s.seed = 1; c = ga.PsoConfig(); c.search = s; r = ga.ParticleSwarmOptimizer(c).optimize(lambda x: 1.0 / (1.0 + sum(v * v for v in x))); assert len(r.best_solution) == 2"
 

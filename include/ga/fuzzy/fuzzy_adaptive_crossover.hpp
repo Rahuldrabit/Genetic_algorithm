@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "crossover/base_crossover.h"
+#include "ga/crossover/base_crossover.h"
 #include "ga/fuzzy/mamdani_system.hpp"
 
 namespace ga {

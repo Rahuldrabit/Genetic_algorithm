@@ -7,7 +7,7 @@
 #include <utility>
 #include <vector>
 
-#include "crossover/base_crossover.h"
+#include "ga/crossover/base_crossover.h"
 #include "ga/metaheuristics/common.hpp"
 #include "ga/shake/shake_types.hpp"
 #include "ga/shake/shake_operators.hpp"

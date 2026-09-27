@@ -39,7 +39,9 @@ add_library(genetic_algorithm STATIC
     ${SELECTION_SOURCES}
 )
 target_include_directories(genetic_algorithm PUBLIC
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}>
     $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include>
+    $<BUILD_INTERFACE:${CMAKE_SOURCE_DIR}/include/ga>
     $<INSTALL_INTERFACE:include>
 )
 set_target_properties(genetic_algorithm PROPERTIES OUTPUT_NAME "genetic_algorithm")
@@ -271,7 +273,11 @@ if(Python_FOUND AND nanobind_FOUND)
     nanobind_add_module(ga_python_module NB_STATIC python/ga_bindings.cpp)
     target_sources(ga_python_module PRIVATE benchmark/ga_benchmark.cc)
     target_link_libraries(ga_python_module PRIVATE genetic_algorithm)
-    target_include_directories(ga_python_module PRIVATE ${CMAKE_SOURCE_DIR}/include)
+    target_include_directories(ga_python_module PRIVATE
+        ${CMAKE_SOURCE_DIR}
+        ${CMAKE_SOURCE_DIR}/include
+        ${CMAKE_SOURCE_DIR}/include/ga
+    )
 
     if(MSVC)
         target_compile_options(ga_python_module PRIVATE /W4)
