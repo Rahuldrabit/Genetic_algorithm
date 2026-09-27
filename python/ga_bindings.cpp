@@ -175,7 +175,7 @@ using DoubleBatchEvaluator =
 
 class PyAdaptiveController : public ga::metaheuristics::IAdaptiveController {
 public:
-    NB_TRAMPOLINE(ga::metaheuristics::IAdaptiveController);
+    NB_TRAMPOLINE(ga::metaheuristics::IAdaptiveController, 2);
 
     ga::metaheuristics::ControlSignal update(
         const ga::metaheuristics::ProgressState& state) const override {
@@ -185,7 +185,7 @@ public:
 
 class PyContinuousOptimizer : public ga::metaheuristics::IContinuousOptimizer {
 public:
-    NB_TRAMPOLINE(ga::metaheuristics::IContinuousOptimizer);
+    NB_TRAMPOLINE(ga::metaheuristics::IContinuousOptimizer, 4);
 
     std::string name() const override {
         NB_OVERRIDE_PURE(name);

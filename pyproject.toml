@@ -2,6 +2,8 @@
 requires = [
     "scikit-build-core>=0.10",
     "nanobind>=2.4.0",
+    "cmake>=3.16",
+    "ninja",
 ]
 build-backend = "scikit_build_core.build"
 
